@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-<title>CleanRead</title>
+<title>CleanRead v1.4</title>
 <style>
   :root {
     --bg: #0f172a;
@@ -38,6 +38,10 @@
     display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 8px;
   }
   h1 { font-size: 1.15rem; letter-spacing: 1.5px; margin: 0; color: var(--accent); }
+  .v-badge {
+    font-size: 0.75rem; background: rgba(56, 189, 248, 0.18);
+    color: var(--accent); padding: 2px 7px; border-radius: 6px; vertical-align: middle;
+  }
   .controls {
     width: 100%; max-width: 680px;
     display: flex; gap: 8px; align-items: center; flex-wrap: wrap;
@@ -53,7 +57,7 @@
     background: linear-gradient(180deg, #22c55e 0%, #15803d 100%);
     border-color: #4ade80;
   }
-  .btn-resume {
+  .btn-restart {
     background: linear-gradient(180deg, #eab308 0%, #b45309 100%);
     border-color: #fde047; color: #fff;
   }
@@ -135,7 +139,7 @@
 
 <header>
   <div class="top-bar">
-    <h1>🔊 CLEANREAD</h1>
+    <h1>🔊 CLEANREAD <span class="v-badge">v1.4</span></h1>
     <div style="display:flex; gap:8px;">
       <button onclick="togglePastePanel()">📋 Paste Text</button>
       <button onclick="dropPinBookmark()">📌 Bookmark</button>
@@ -144,7 +148,7 @@
 
   <div class="controls">
     <button class="btn-play" id="playPauseBtn" onclick="togglePlay()">▶ Play</button>
-    <button class="btn-resume" id="restartBtn" onclick="restartFromTop()" style="display:none;">↺ Restart</button>
+    <button class="btn-restart" id="restartBtn" onclick="restartFromTop()" style="display:none;">↺ Restart</button>
     <select id="speedSelect" onchange="changeSpeed()">
       <option value="0.9">0.9x</option>
       <option value="1.0" selected>1.0x</option>
@@ -157,7 +161,6 @@
     </select>
   </div>
 
-  <!-- Silent, clean visual progress line instead of noisy developer text! -->
   <div class="progress-track">
     <div class="progress-fill" id="progressBar"></div>
   </div>
@@ -250,7 +253,7 @@ function tokenizeDocument() {
     currentWordIdx = saved;
     highlightWord(currentWordIdx);
   }
-  updatePlayButton();
+  updateTransportButtons();
   renderBookmarks();
 }
 
@@ -261,8 +264,9 @@ function playFromWord(startIdx) {
   currentWordIdx = startIdx;
   isPlaying = true;
   autoScroll = true;
-  updatePlayButton();
   highlightWord(currentWordIdx);
+  localStorage.setItem(STORAGE_POS_KEY, currentWordIdx);
+  updateTransportButtons();
 
   const slice = wordsList.slice(startIdx);
   let charMap = [];
@@ -291,6 +295,7 @@ function playFromWord(startIdx) {
             currentWordIdx = wIdx;
             highlightWord(currentWordIdx);
             localStorage.setItem(STORAGE_POS_KEY, currentWordIdx);
+            updateTransportButtons();
           }
           break;
         }
@@ -301,7 +306,7 @@ function playFromWord(startIdx) {
   utter.onend = () => {
     if (activeUtterance === utter) {
       isPlaying = false;
-      updatePlayButton();
+      updateTransportButtons();
     }
   };
 
@@ -335,33 +340,31 @@ function togglePlay() {
   if (isPlaying) {
     synth.cancel();
     isPlaying = false;
-    updatePlayButton();
     localStorage.setItem(STORAGE_POS_KEY, currentWordIdx);
+    updateTransportButtons();
   } else {
     playFromWord(currentWordIdx);
-  }
-}
-
-function updatePlayButton() {
-  const btn = document.getElementById("playPauseBtn");
-  const restartBtn = document.getElementById("restartBtn");
-
-  if (isPlaying) {
-    btn.textContent = "⏸ Pause";
-  } else if (currentWordIdx > 0) {
-    btn.textContent = "▶ Resume";
-  } else {
-    btn.textContent = "▶ Play";
-  }
-
-  if (restartBtn) {
-    restartBtn.style.display = (currentWordIdx > 0) ? "inline-block" : "none";
   }
 }
 
 function restartFromTop() {
   localStorage.removeItem(STORAGE_POS_KEY);
   playFromWord(0);
+}
+
+function updateTransportButtons() {
+  const playBtn = document.getElementById("playPauseBtn");
+  const restartBtn = document.getElementById("restartBtn");
+
+  if (isPlaying) {
+    playBtn.textContent = "⏸ Pause";
+  } else if (currentWordIdx > 0) {
+    playBtn.textContent = "▶ Resume";
+  } else {
+    playBtn.textContent = "▶ Play";
+  }
+
+  restartBtn.style.display = (currentWordIdx > 0) ? "inline-block" : "none";
 }
 
 function changeSpeed() {
@@ -407,14 +410,13 @@ function loadCustomText() {
   if (!raw) return;
   synth.cancel();
   isPlaying = false;
-  updatePlayButton();
+  currentWordIdx = 0;
   const container = document.getElementById("readerContent");
   const paras = raw.split(/\n\s*\n/);
   container.innerHTML = "<h2>Custom Loaded Document</h2>" + paras.map(p => `<p>${p.replace(/\n/g, " ")}</p>`).join("");
   localStorage.removeItem(STORAGE_POS_KEY);
   localStorage.removeItem(STORAGE_BM_KEY);
   document.getElementById("pastePanel").classList.remove("open");
-  currentWordIdx = 0;
   tokenizeDocument();
   playFromWord(0);
 }
