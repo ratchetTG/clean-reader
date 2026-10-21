@@ -144,7 +144,7 @@
 
   <div class="controls">
     <button class="btn-play" id="playPauseBtn" onclick="togglePlay()">▶ Play</button>
-    <button class="btn-resume" id="resumeBtn" onclick="resumeSavedSpot()" style="display:none;">↺ Resume Last Spot</button>
+    <button class="btn-resume" id="restartBtn" onclick="restartFromTop()" style="display:none;">↺ Restart</button>
     <select id="speedSelect" onchange="changeSpeed()">
       <option value="0.9">0.9x</option>
       <option value="1.0" selected>1.0x</option>
@@ -245,7 +245,12 @@ function tokenizeDocument() {
     });
   });
 
-  checkSavedResume();
+  const saved = parseInt(localStorage.getItem(STORAGE_POS_KEY));
+  if (!isNaN(saved) && saved > 0 && saved < wordsList.length) {
+    currentWordIdx = saved;
+    highlightWord(currentWordIdx);
+  }
+  updatePlayButton();
   renderBookmarks();
 }
 
@@ -257,7 +262,6 @@ function playFromWord(startIdx) {
   isPlaying = true;
   autoScroll = true;
   updatePlayButton();
-  document.getElementById("resumeBtn").style.display = "none";
   highlightWord(currentWordIdx);
 
   const slice = wordsList.slice(startIdx);
@@ -340,27 +344,29 @@ function togglePlay() {
 
 function updatePlayButton() {
   const btn = document.getElementById("playPauseBtn");
-  btn.textContent = isPlaying ? "⏸ Pause" : "▶ Play";
+  const restartBtn = document.getElementById("restartBtn");
+
+  if (isPlaying) {
+    btn.textContent = "⏸ Pause";
+  } else if (currentWordIdx > 0) {
+    btn.textContent = "▶ Resume";
+  } else {
+    btn.textContent = "▶ Play";
+  }
+
+  if (restartBtn) {
+    restartBtn.style.display = (currentWordIdx > 0) ? "inline-block" : "none";
+  }
+}
+
+function restartFromTop() {
+  localStorage.removeItem(STORAGE_POS_KEY);
+  playFromWord(0);
 }
 
 function changeSpeed() {
   speechRate = parseFloat(document.getElementById("speedSelect").value);
   if (isPlaying) playFromWord(currentWordIdx);
-}
-
-function checkSavedResume() {
-  const saved = parseInt(localStorage.getItem(STORAGE_POS_KEY));
-  const btn = document.getElementById("resumeBtn");
-  if (!isNaN(saved) && saved > 0 && saved < wordsList.length && !isPlaying) {
-    btn.style.display = "inline-block";
-  } else {
-    btn.style.display = "none";
-  }
-}
-
-function resumeSavedSpot() {
-  const saved = parseInt(localStorage.getItem(STORAGE_POS_KEY));
-  if (!isNaN(saved)) playFromWord(saved);
 }
 
 function dropPinBookmark() {
@@ -408,6 +414,7 @@ function loadCustomText() {
   localStorage.removeItem(STORAGE_POS_KEY);
   localStorage.removeItem(STORAGE_BM_KEY);
   document.getElementById("pastePanel").classList.remove("open");
+  currentWordIdx = 0;
   tokenizeDocument();
   playFromWord(0);
 }
