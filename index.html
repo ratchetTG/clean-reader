@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-<title>CleanRead — Tap-to-Listen Audio Reader</title>
+<title>CleanRead</title>
 <style>
   :root {
     --bg: #0f172a;
@@ -26,7 +26,7 @@
   }
   header {
     position: sticky; top: 0; z-index: 50;
-    width: 100%; background: rgba(15, 23, 42, 0.92);
+    width: 100%; background: rgba(15, 23, 42, 0.94);
     backdrop-filter: blur(12px);
     border-bottom: 1px solid rgba(255,255,255,0.12);
     padding: 12px 16px;
@@ -57,10 +57,13 @@
     background: linear-gradient(180deg, #eab308 0%, #b45309 100%);
     border-color: #fde047; color: #fff;
   }
-  .status-bar {
-    width: 100%; max-width: 680px;
-    display: flex; justify-content: space-between; align-items: center;
-    font-size: 0.88rem; color: #cbd5e1; font-weight: 600;
+  .progress-track {
+    width: 100%; max-width: 680px; height: 4px;
+    background: rgba(255,255,255,0.1); border-radius: 2px; overflow: hidden;
+  }
+  .progress-fill {
+    width: 0%; height: 100%; background: var(--accent);
+    transition: width 0.25s ease;
   }
   .reader-container {
     width: 100%; max-width: 680px;
@@ -72,7 +75,6 @@
   }
   .reader-container p {
     margin-bottom: 22px; padding: 10px 12px; border-radius: 10px;
-    transition: background-color 0.2s ease;
   }
   .reader-container p.active-block {
     background: rgba(56, 189, 248, 0.08);
@@ -80,9 +82,7 @@
   }
   .word {
     cursor: pointer; padding: 2px 4px; border-radius: 6px;
-    transition: background-color 0.08s ease, color 0.08s ease;
   }
-  .word:hover { background: rgba(255,255,255,0.12); }
   .word.active-word {
     background: var(--gold); color: #000000;
     font-weight: 800; box-shadow: 0 3px 10px rgba(250, 204, 21, 0.5);
@@ -112,7 +112,7 @@
   .paste-panel {
     display: none; width: 100%; max-width: 680px;
     background: var(--panel); padding: 16px; border-radius: 12px;
-    margin-top: 12px; border: 1px solid rgba(255,255,255,0.2);
+    margin-top: 8px; border: 1px solid rgba(255,255,255,0.2);
   }
   .paste-panel.open { display: block; }
   textarea {
@@ -135,36 +135,31 @@
 
 <header>
   <div class="top-bar">
-    <h1>🔊 CLEANREAD LAB</h1>
+    <h1>🔊 CLEANREAD</h1>
     <div style="display:flex; gap:8px;">
-      <button onclick="togglePastePanel()">📋 Paste Text / Article</button>
-      <button onclick="dropPinBookmark()">📌 Drop Bookmark</button>
+      <button onclick="togglePastePanel()">📋 Paste Text</button>
+      <button onclick="dropPinBookmark()">📌 Bookmark</button>
     </div>
   </div>
 
   <div class="controls">
     <button class="btn-play" id="playPauseBtn" onclick="togglePlay()">▶ Play</button>
-    <button class="btn-resume" id="resumeBtn" onclick="resumeSavedSpot()" style="display:none;">↺ Resume Saved Word</button>
+    <button class="btn-resume" id="resumeBtn" onclick="resumeSavedSpot()" style="display:none;">↺ Resume Last Spot</button>
     <select id="speedSelect" onchange="changeSpeed()">
-      <option value="0.9">0.9x Speed</option>
-      <option value="1.0" selected>1.0x Normal</option>
-      <option value="1.15">1.15x Commute</option>
-      <option value="1.3">1.3x Fast</option>
-      <option value="1.5">1.5x Turbo</option>
+      <option value="0.9">0.9x</option>
+      <option value="1.0" selected>1.0x</option>
+      <option value="1.15">1.15x</option>
+      <option value="1.3">1.3x</option>
+      <option value="1.5">1.5x</option>
     </select>
-    <select id="voiceSelect" style="max-width:230px;"></select>
+    <select id="voiceSelect" style="max-width:220px;">
+      <option value="__DEFAULT__">📱 Default Voice</option>
+    </select>
   </div>
 
-  <div id="dlBanner" style="display:none; width:100%; max-width:680px; background:#1e293b; border:1px solid #38bdf8; border-radius:8px; padding:10px 14px; font-size:0.9rem; font-weight:700; color:#f8fafc;">
-    <div id="dlStatusTxt">Downloading Neural Voice Pack into Browser Cache (0%)...</div>
-    <div style="width:100%; height:8px; background:#0f172a; border-radius:4px; margin-top:6px; overflow:hidden;">
-      <div id="dlBar" style="width:0%; height:100%; background:#22c55e; transition:width 0.2s;"></div>
-    </div>
-  </div>
-
-  <div class="status-bar">
-    <span id="progressTxt">Tap ANY word on the page to jump the voice straight there!</span>
-    <span id="autoScrollStatus">🎯 Auto-Scroll: ON</span>
+  <!-- Silent, clean visual progress line instead of noisy developer text! -->
+  <div class="progress-track">
+    <div class="progress-fill" id="progressBar"></div>
   </div>
 
   <div class="paste-panel" id="pastePanel">
@@ -203,7 +198,7 @@
   <h2>Part 3: Testing Teleprompter Auto-Scroll &amp; Bookmarks</h2>
   <p>As the voice continues down a long multi-screen chapter or PDF, the page gently scrolls itself so the highlighted gold word stays right in the center of your vision. If you touch the screen to scroll down manually and preview what is coming up next, auto-scroll pauses politely so it never fights your thumb.</p>
 
-  <p>Whenever you hear a great idea that you want to save, just tap the Drop Bookmark button at the top of the screen. It drops a pink pin on the exact word being spoken and adds a quick-jump chip at the top of the page so you can return to that exact sentence anytime.</p>
+  <p>Whenever you hear a great idea that you want to save, just tap the Bookmark button at the top of the screen. It drops a pink pin on the exact word being spoken and adds a quick-jump chip at the top of the page so you can return to that exact sentence anytime.</p>
 </div>
 
 <script>
@@ -212,29 +207,13 @@ let currentWordIdx = 0;
 let isPlaying = false;
 let autoScroll = true;
 let speechRate = 1.0;
-let selectedVoice = null;
 let activeUtterance = null;
-
-let kokoroTTS = null;
-let kokoroUnlocked = localStorage.getItem("cleanread_kokoro_unlocked_v1") === "true";
-let currentAudio = null;
-let wordTimer = null;
-let playSessionId = 0;
 let prevWordEl = null;
 let prevBlockEl = null;
 
 const STORAGE_POS_KEY = "cleanread_saved_word_idx_v1";
 const STORAGE_BM_KEY = "cleanread_bookmarks_v1";
 const synth = window.speechSynthesis;
-
-const KOKORO_VOICES = [
-  { id: "bm_george", label: "🎙️ George (UK Male Storyteller)" },
-  { id: "bf_emma",   label: "🎙️ Emma (UK Female Narrator)" },
-  { id: "bm_lewis",  label: "🎙️ Lewis (UK Deep Male)" },
-  { id: "af_heart",  label: "🎙️ Heart (US Warm Female)" },
-  { id: "af_bella",  label: "🎙️ Bella (US Clear Female)" },
-  { id: "am_michael",label: "🎙️ Michael (US Male Narrator)" }
-];
 
 function tokenizeDocument() {
   wordsList = [];
@@ -253,14 +232,12 @@ function tokenizeDocument() {
       const span = document.createElement("span");
       span.className = "word";
       span.textContent = token;
-      span.dataset.idx = globalIdx;
       const capturedIdx = globalIdx;
       span.onclick = () => playFromWord(capturedIdx);
       block.appendChild(span);
       if (i < rawTokens.length - 1) {
         block.appendChild(document.createTextNode(" "));
       }
-      // Subtle comma after heading so it pauses naturally without breaking the stream
       const isLastInHeading = (block.tagName === "H2" && i === rawTokens.length - 1 && !/[.!?,;:]$/.test(token));
       const spokenText = isLastInHeading ? token + "," : token;
       wordsList.push({ index: globalIdx, text: token, spoken: spokenText, spanEl: span, blockEl: block });
@@ -272,125 +249,17 @@ function tokenizeDocument() {
   renderBookmarks();
 }
 
-function loadVoices() {
-  const voices = synth.getVoices();
-  const sel = document.getElementById("voiceSelect");
-  const prevVal = sel.value;
-  sel.innerHTML = "";
-
-  const defaultVoice = voices.find(v => v.default) || voices.find(v => v.lang.startsWith("en")) || voices[0] || null;
-  selectedVoice = defaultVoice;
-
-  const defOpt = document.createElement("option");
-  defOpt.value = "__DEFAULT__";
-  defOpt.textContent = "📱 Default Phone Voice";
-  sel.appendChild(defOpt);
-
-  if (!kokoroUnlocked) {
-    const moreOpt = document.createElement("option");
-    moreOpt.value = "__DOWNLOAD_PACK__";
-    moreOpt.textContent = "MORE VOICE OPTIONS - Download Voice Pack";
-    sel.appendChild(moreOpt);
-  } else {
-    KOKORO_VOICES.forEach(kv => {
-      const opt = document.createElement("option");
-      opt.value = kv.id;
-      opt.textContent = kv.label;
-      sel.appendChild(opt);
-    });
-    if (prevVal && prevVal !== "__DEFAULT__" && prevVal !== "__DOWNLOAD_PACK__") {
-      sel.value = prevVal;
-    }
-  }
-
-  sel.onchange = async () => {
-    if (sel.value === "__DOWNLOAD_PACK__") {
-      sel.value = "__DEFAULT__";
-      await downloadKokoroPack();
-      return;
-    }
-    if (isPlaying) playFromWord(currentWordIdx);
-  };
-}
-speechSynthesis.onvoiceschanged = loadVoices;
-setTimeout(loadVoices, 100);
-
-async function downloadKokoroPack() {
-  const banner = document.getElementById("dlBanner");
-  const txt = document.getElementById("dlStatusTxt");
-  const bar = document.getElementById("dlBar");
-  banner.style.display = "block";
-  txt.textContent = "Initializing Neural Voice Pack (~80MB one-time download)...";
-  bar.style.width = "8%";
-
-  try {
-    const module = await import("https://cdn.jsdelivr.net/npm/kokoro-js@1.1.1/+esm");
-    const KokoroTTS = module.KokoroTTS;
-    kokoroTTS = await KokoroTTS.from_pretrained("onnx-community/Kokoro-82M-v1.0-ONNX", {
-      dtype: "q8",
-      progress_callback: (p) => {
-        if (p && p.progress !== undefined) {
-          const pct = Math.round(p.progress);
-          bar.style.width = pct + "%";
-          txt.textContent = `Downloading Voice Pack: ${pct}% (${p.file || "model"})`;
-        }
-      }
-    });
-    kokoroUnlocked = true;
-    localStorage.setItem("cleanread_kokoro_unlocked_v1", "true");
-    bar.style.width = "100%";
-    txt.textContent = "✅ Voice Pack Installed! Select any narrator in the dropdown.";
-    loadVoices();
-    document.getElementById("voiceSelect").value = "bm_george";
-    setTimeout(() => { banner.style.display = "none"; }, 3000);
-    if (isPlaying) playFromWord(currentWordIdx);
-  } catch (err) {
-    txt.textContent = "⚠️ Download interrupted: " + err.message;
-  }
-}
-
-function stopAllAudio() {
-  playSessionId++;
-  synth.cancel();
-  if (currentAudio) {
-    currentAudio.pause();
-    currentAudio.src = "";
-    currentAudio = null;
-  }
-  if (wordTimer) {
-    clearInterval(wordTimer);
-    wordTimer = null;
-  }
-}
-
 function playFromWord(startIdx) {
   if (startIdx < 0 || startIdx >= wordsList.length) return;
-  stopAllAudio();
-  const mySession = playSessionId;
+  synth.cancel();
 
   currentWordIdx = startIdx;
   isPlaying = true;
   autoScroll = true;
-  document.getElementById("autoScrollStatus").textContent = "🎯 Auto-Scroll: ON";
   updatePlayButton();
+  document.getElementById("resumeBtn").style.display = "none";
   highlightWord(currentWordIdx);
-  saveWordMemory(currentWordIdx);
 
-  const chosenVoiceId = document.getElementById("voiceSelect").value;
-
-  // Path A: Neural Voice Pack
-  if (chosenVoiceId && chosenVoiceId !== "__DEFAULT__" && chosenVoiceId !== "__DOWNLOAD_PACK__") {
-    setTimeout(async () => {
-      if (!kokoroTTS) {
-        await downloadKokoroPack();
-        if (!kokoroTTS || mySession !== playSessionId) return;
-      }
-      await playKokoroParagraphs(startIdx, chosenVoiceId, mySession);
-    }, 30);
-    return;
-  }
-
-  // Path B: Exact original Train Prototype engine for Default Voice (zero choking!)
   const slice = wordsList.slice(startIdx);
   let charMap = [];
   let pos = 0;
@@ -405,19 +274,19 @@ function playFromWord(startIdx) {
   utter.rate = speechRate;
   activeUtterance = utter;
 
-  let lastHighlightIdx = -1;
+  let lastWIdx = -1;
   utter.onboundary = (event) => {
-    if (mySession !== playSessionId) return;
+    if (activeUtterance !== utter) return;
     if (event.charIndex !== undefined) {
       const chIdx = event.charIndex;
       for (let i = 0; i < charMap.length; i++) {
         if (chIdx >= charMap[i].start && chIdx <= charMap[i].end + 1) {
           const wIdx = charMap[i].wordIdx;
-          if (wIdx !== lastHighlightIdx) {
-            lastHighlightIdx = wIdx;
+          if (wIdx !== lastWIdx) {
+            lastWIdx = wIdx;
             currentWordIdx = wIdx;
             highlightWord(currentWordIdx);
-            if (wIdx % 4 === 0) saveWordMemory(currentWordIdx);
+            localStorage.setItem(STORAGE_POS_KEY, currentWordIdx);
           }
           break;
         }
@@ -426,66 +295,13 @@ function playFromWord(startIdx) {
   };
 
   utter.onend = () => {
-    if (mySession === playSessionId) {
-      saveWordMemory(currentWordIdx);
+    if (activeUtterance === utter) {
       isPlaying = false;
       updatePlayButton();
     }
   };
 
   synth.speak(utter);
-}
-
-async function playKokoroParagraphs(startIdx, voiceId, mySession) {
-  let idx = startIdx;
-  while (idx < wordsList.length && mySession === playSessionId) {
-    const startBlock = wordsList[idx].blockEl;
-    const chunkWords = [];
-    while (idx < wordsList.length && wordsList[idx].blockEl === startBlock) {
-      chunkWords.push(wordsList[idx]);
-      idx++;
-    }
-    const text = chunkWords.map(w => w.spoken || w.text).join(" ");
-    document.getElementById("progressTxt").textContent = "🎙️ Preparing neural paragraph...";
-    await new Promise(r => setTimeout(r, 20));
-    if (mySession !== playSessionId) return;
-
-    const res = await kokoroTTS.generate(text, { voice: voiceId, speed: speechRate });
-    if (mySession !== playSessionId) return;
-    const url = URL.createObjectURL(res.toBlob());
-
-    await new Promise((resolve) => {
-      const audio = new Audio(url);
-      currentAudio = audio;
-      audio.onloadedmetadata = () => {
-        const durationMs = (audio.duration || 2.0) * 1000;
-        const totalChars = chunkWords.reduce((acc, w) => acc + w.text.length, 0) || 1;
-        wordTimer = setInterval(() => {
-          if (mySession !== playSessionId) { clearInterval(wordTimer); resolve(); return; }
-          const ratio = Math.min(1, (audio.currentTime * 1000) / durationMs);
-          const targetChar = ratio * totalChars;
-          let run = 0;
-          for (let cw of chunkWords) {
-            run += cw.text.length;
-            if (run >= targetChar) {
-              if (currentWordIdx !== cw.index) {
-                currentWordIdx = cw.index;
-                highlightWord(currentWordIdx);
-              }
-              break;
-            }
-          }
-        }, 60);
-        audio.play();
-      };
-      audio.onended = () => { clearInterval(wordTimer); URL.revokeObjectURL(url); saveWordMemory(currentWordIdx); resolve(); };
-      audio.onerror = () => { clearInterval(wordTimer); resolve(); };
-    });
-  }
-  if (mySession === playSessionId) {
-    isPlaying = false;
-    updatePlayButton();
-  }
 }
 
 function highlightWord(idx) {
@@ -501,11 +317,11 @@ function highlightWord(idx) {
   prevBlockEl = item.blockEl;
 
   const pct = Math.round(((idx + 1) / wordsList.length) * 100);
-  document.getElementById("progressTxt").textContent = `Word #${idx + 1} of ${wordsList.length} (${pct}%) — "${item.text}"`;
+  document.getElementById("progressBar").style.width = pct + "%";
 
   if (autoScroll) {
     const rect = item.spanEl.getBoundingClientRect();
-    if (rect.top < 160 || rect.bottom > window.innerHeight - 100) {
+    if (rect.top < 150 || rect.bottom > window.innerHeight - 90) {
       item.spanEl.scrollIntoView({ behavior: "smooth", block: "center" });
     }
   }
@@ -513,9 +329,10 @@ function highlightWord(idx) {
 
 function togglePlay() {
   if (isPlaying) {
-    stopAllAudio();
+    synth.cancel();
     isPlaying = false;
     updatePlayButton();
+    localStorage.setItem(STORAGE_POS_KEY, currentWordIdx);
   } else {
     playFromWord(currentWordIdx);
   }
@@ -531,17 +348,11 @@ function changeSpeed() {
   if (isPlaying) playFromWord(currentWordIdx);
 }
 
-function saveWordMemory(idx) {
-  localStorage.setItem(STORAGE_POS_KEY, idx);
-  checkSavedResume();
-}
-
 function checkSavedResume() {
   const saved = parseInt(localStorage.getItem(STORAGE_POS_KEY));
   const btn = document.getElementById("resumeBtn");
-  if (!isNaN(saved) && saved > 0 && saved < wordsList.length) {
+  if (!isNaN(saved) && saved > 0 && saved < wordsList.length && !isPlaying) {
     btn.style.display = "inline-block";
-    btn.textContent = `↺ Resume Word #${saved + 1}`;
   } else {
     btn.style.display = "none";
   }
@@ -557,7 +368,7 @@ function dropPinBookmark() {
   const item = wordsList[currentWordIdx];
   if (!item) return;
   const snippet = wordsList.slice(currentWordIdx, currentWordIdx + 4).map(w => w.text).join(" ") + "...";
-  bms.push({ idx: currentWordIdx, label: `📌 Word #${currentWordIdx + 1}: "${snippet}"` });
+  bms.push({ idx: currentWordIdx, label: `📌 "${snippet}"` });
   localStorage.setItem(STORAGE_BM_KEY, JSON.stringify(bms));
   renderBookmarks();
 }
@@ -578,18 +389,8 @@ function renderBookmarks() {
   });
 }
 
-window.addEventListener("wheel", () => {
-  if (isPlaying) {
-    autoScroll = false;
-    document.getElementById("autoScrollStatus").textContent = "✋ Auto-Scroll: PAUSED (Tap word to re-center)";
-  }
-}, { passive: true });
-window.addEventListener("touchmove", () => {
-  if (isPlaying) {
-    autoScroll = false;
-    document.getElementById("autoScrollStatus").textContent = "✋ Auto-Scroll: PAUSED (Tap word to re-center)";
-  }
-}, { passive: true });
+window.addEventListener("wheel", () => { if (isPlaying) autoScroll = false; }, { passive: true });
+window.addEventListener("touchmove", () => { if (isPlaying) autoScroll = false; }, { passive: true });
 
 function togglePastePanel() {
   document.getElementById("pastePanel").classList.toggle("open");
@@ -598,7 +399,7 @@ function togglePastePanel() {
 function loadCustomText() {
   const raw = document.getElementById("customTextInput").value.trim();
   if (!raw) return;
-  stopAllAudio();
+  synth.cancel();
   isPlaying = false;
   updatePlayButton();
   const container = document.getElementById("readerContent");
