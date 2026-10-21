@@ -3,149 +3,50 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-<title>CleanRead v1.5</title>
+<title>CleanRead v1.7</title>
 <style>
-  :root {
-    --bg: #0f172a;
-    --panel: #1e293b;
-    --text: #f8fafc;
-    --muted: #94a3b8;
-    --accent: #38bdf8;
-    --gold: #facc15;
-    --green: #22c55e;
-  }
-  * { box-sizing: border-box; -webkit-tap-highlight-color: transparent; }
-  body {
-    margin: 0; padding: 0;
-    background: radial-gradient(circle at 50% 15%, #28374d 0%, #0f172a 75%);
-    background-attachment: fixed;
-    color: var(--text);
-    font-family: system-ui, -apple-system, sans-serif;
-    display: flex; flex-direction: column; align-items: center;
-    padding-bottom: 140px;
-  }
-  header {
-    position: sticky; top: 0; z-index: 50;
-    width: 100%; background: rgba(15, 23, 42, 0.94);
-    backdrop-filter: blur(12px);
-    border-bottom: 1px solid rgba(255,255,255,0.12);
-    padding: 12px 16px;
-    display: flex; flex-direction: column; align-items: center; gap: 10px;
-    box-shadow: 0 8px 20px rgba(0,0,0,0.4);
-  }
-  .top-bar {
-    width: 100%; max-width: 680px;
-    display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 8px;
-  }
-  h1 { font-size: 1.15rem; letter-spacing: 1.5px; margin: 0; color: var(--accent); }
-  .v-badge {
-    font-size: 0.75rem; background: rgba(56, 189, 248, 0.18);
-    color: var(--accent); padding: 2px 7px; border-radius: 6px; vertical-align: middle;
-  }
-  .controls {
-    width: 100%; max-width: 680px;
-    display: flex; gap: 8px; align-items: center; flex-wrap: wrap;
-  }
-  button, select {
-    background: linear-gradient(180deg, #334155 0%, #1e293b 100%);
-    color: var(--text); border: 1px solid rgba(255,255,255,0.2);
-    border-radius: 8px; padding: 9px 14px; font-size: 0.95rem; font-weight: 700;
-    cursor: pointer; box-shadow: 0 4px 0 #090d16;
-  }
-  button:active { transform: translateY(3px); box-shadow: 0 1px 0 #090d16; }
-  .btn-play {
-    background: linear-gradient(180deg, #22c55e 0%, #15803d 100%);
-    border-color: #4ade80;
-  }
-  .btn-restart {
-    background: linear-gradient(180deg, #eab308 0%, #b45309 100%);
-    border-color: #fde047; color: #fff;
-  }
-  .progress-track {
-    width: 100%; max-width: 680px; height: 4px;
-    background: rgba(255,255,255,0.1); border-radius: 2px; overflow: hidden;
-  }
-  .progress-fill {
-    width: 0%; height: 100%; background: var(--accent);
-    transition: width 0.2s ease;
-  }
-  .reader-container {
-    width: 100%; max-width: 680px;
-    padding: 22px 18px;
-    font-size: 1.28rem; line-height: 1.85;
-  }
-  .reader-container h2 {
-    color: var(--accent); font-size: 1.45rem; margin-top: 28px; margin-bottom: 12px;
-  }
-  .reader-container p {
-    margin-bottom: 22px; padding: 10px 12px; border-radius: 10px;
-  }
-  .reader-container p.active-block {
-    background: rgba(56, 189, 248, 0.08);
-    border-left: 4px solid var(--accent);
-  }
-  .word {
-    cursor: pointer; padding: 2px 4px; border-radius: 6px;
-  }
-  .word.active-word {
-    background: var(--gold); color: #000000;
-    font-weight: 800; box-shadow: 0 3px 10px rgba(250, 204, 21, 0.5);
-  }
-  .word.bookmarked-word {
-    border-bottom: 3px solid #f472b6;
-  }
-  .visual-table-wrap {
-    margin: 24px 0; padding: 14px;
-    background: rgba(30, 41, 59, 0.85);
-    border: 2px dashed rgba(250, 204, 21, 0.45);
-    border-radius: 12px;
-  }
-  .skip-badge {
-    display: flex; justify-content: space-between; align-items: center;
-    background: rgba(250, 204, 21, 0.15); color: var(--gold);
-    padding: 8px 12px; border-radius: 8px; font-size: 0.9rem; font-weight: 800;
-    margin-bottom: 12px;
-  }
-  table {
-    width: 100%; border-collapse: collapse; font-size: 0.95rem;
-  }
-  th, td {
-    border: 1px solid #334155; padding: 10px; text-align: left;
-  }
-  th { background: #1e293b; color: var(--accent); }
-  .paste-panel {
-    display: none; width: 100%; max-width: 680px;
-    background: var(--panel); padding: 16px; border-radius: 12px;
-    margin-top: 8px; border: 1px solid rgba(255,255,255,0.2);
-  }
-  .paste-panel.open { display: block; }
-  textarea {
-    width: 100%; height: 150px; background: #0f172a; color: #fff;
-    border: 1px solid #475569; border-radius: 8px; padding: 12px;
-    font-size: 1rem; margin-bottom: 10px;
-  }
-  .bookmarks-bar {
-    width: 100%; max-width: 680px; padding: 0 18px;
-    display: flex; gap: 8px; flex-wrap: wrap; margin-top: 12px;
-  }
-  .bm-chip {
-    background: rgba(244, 114, 182, 0.16); border: 1px solid #f472b6;
-    color: #fbcfe8; padding: 6px 12px; border-radius: 20px;
-    font-size: 0.85rem; font-weight: 700; cursor: pointer;
-  }
+  :root { --bg:#0f172a; --panel:#1e293b; --text:#f8fafc; --accent:#38bdf8; --gold:#facc15; }
+  * { box-sizing:border-box; -webkit-tap-highlight-color:transparent; }
+  body { margin:0; padding:0 0 140px 0; background:radial-gradient(circle at 50% 15%, #28374d 0%, #0f172a 75%) fixed; color:var(--text); font-family:system-ui,-apple-system,sans-serif; display:flex; flex-direction:column; align-items:center; }
+  header { position:sticky; top:0; z-index:50; width:100%; background:rgba(15,23,42,0.95); backdrop-filter:blur(12px); border-bottom:1px solid rgba(255,255,255,0.12); padding:12px 16px; display:flex; flex-direction:column; align-items:center; gap:10px; box-shadow:0 8px 20px rgba(0,0,0,0.4); }
+  .top-bar, .controls { width:100%; max-width:680px; display:flex; justify-content:space-between; align-items:center; flex-wrap:wrap; gap:8px; }
+  .controls { justify-content:flex-start; }
+  h1 { font-size:1.15rem; letter-spacing:1.5px; margin:0; color:var(--accent); }
+  .v-badge { font-size:0.75rem; background:rgba(56,189,248,0.18); color:var(--accent); padding:2px 7px; border-radius:6px; }
+  button, select { background:linear-gradient(180deg,#334155 0%,#1e293b 100%); color:var(--text); border:1px solid rgba(255,255,255,0.2); border-radius:8px; padding:9px 14px; font-size:0.95rem; font-weight:700; cursor:pointer; box-shadow:0 4px 0 #090d16; }
+  button:active { transform:translateY(3px); box-shadow:0 1px 0 #090d16; }
+  .btn-play { background:linear-gradient(180deg,#22c55e 0%,#15803d 100%); border-color:#4ade80; }
+  .btn-restart { background:linear-gradient(180deg,#eab308 0%,#b45309 100%); border-color:#fde047; color:#fff; }
+  .progress-track { width:100%; max-width:680px; height:4px; background:rgba(255,255,255,0.1); border-radius:2px; overflow:hidden; }
+  .progress-fill { width:0%; height:100%; background:var(--accent); transition:width 0.2s ease; }
+  .reader-container { width:100%; max-width:680px; padding:22px 18px; font-size:1.28rem; line-height:1.85; }
+  .reader-container h2 { color:var(--accent); font-size:1.45rem; margin:28px 0 12px 0; }
+  .reader-container p { margin-bottom:22px; padding:10px 12px; border-radius:10px; }
+  .reader-container p.active-block { background:rgba(56,189,248,0.08); border-left:4px solid var(--accent); }
+  .word { cursor:pointer; padding:2px 4px; border-radius:6px; }
+  .word.active-word { background:var(--gold); color:#000; font-weight:800; box-shadow:0 3px 10px rgba(250,204,21,0.5); }
+  .word.bookmarked-word { border-bottom:3px solid #f472b6; }
+  .visual-table-wrap { margin:24px 0; padding:14px; background:rgba(30,41,59,0.85); border:2px dashed rgba(250,204,21,0.45); border-radius:12px; }
+  .skip-badge { background:rgba(250,204,21,0.15); color:var(--gold); padding:8px 12px; border-radius:8px; font-size:0.9rem; font-weight:800; margin-bottom:12px; }
+  table { width:100%; border-collapse:collapse; font-size:0.95rem; }
+  th, td { border:1px solid #334155; padding:10px; text-align:left; }
+  th { background:#1e293b; color:var(--accent); }
+  .paste-panel { display:none; width:100%; max-width:680px; background:var(--panel); padding:16px; border-radius:12px; margin-top:8px; border:1px solid rgba(255,255,255,0.2); }
+  .paste-panel.open { display:block; }
+  textarea { width:100%; height:150px; background:#0f172a; color:#fff; border:1px solid #475569; border-radius:8px; padding:12px; font-size:1rem; margin-bottom:10px; }
+  .bookmarks-bar { width:100%; max-width:680px; padding:0 18px; display:flex; gap:8px; flex-wrap:wrap; margin-top:12px; }
+  .bm-chip { background:rgba(244,114,182,0.16); border:1px solid #f472b6; color:#fbcfe8; padding:6px 12px; border-radius:20px; font-size:0.85rem; font-weight:700; cursor:pointer; }
 </style>
 </head>
 <body>
-
 <header>
   <div class="top-bar">
-    <h1>🔊 CLEANREAD <span class="v-badge">v1.5</span></h1>
+    <h1>🔊 CLEANREAD <span class="v-badge">v1.7</span></h1>
     <div style="display:flex; gap:8px;">
       <button onclick="togglePastePanel()">📋 Paste Text</button>
       <button onclick="dropPinBookmark()">📌 Bookmark</button>
     </div>
   </div>
-
   <div class="controls">
     <button class="btn-play" id="playPauseBtn" onclick="togglePlay()">▶ Play</button>
     <button class="btn-restart" id="restartBtn" onclick="restartFromTop()" style="display:none;">↺ Restart</button>
@@ -158,479 +59,272 @@
     </select>
     <select id="voiceSelect" style="max-width:230px;"></select>
   </div>
-
-  <div id="dlBanner" style="display:none; width:100%; max-width:680px; background:#1e293b; border:1px solid #38bdf8; border-radius:8px; padding:10px 14px; font-size:0.9rem; font-weight:700; color:#f8fafc;">
+  <div id="dlBanner" style="display:none; width:100%; max-width:680px; background:#1e293b; border:1px solid #38bdf8; border-radius:8px; padding:10px 14px; font-size:0.9rem; font-weight:700;">
     <div id="dlStatusTxt">Downloading Voice Pack (0%)...</div>
     <div style="width:100%; height:8px; background:#0f172a; border-radius:4px; margin-top:6px; overflow:hidden;">
-      <div id="dlBar" style="width:0%; height:100%; background:#22c55e; transition:width 0.2s;"></div>
+      <div id="dlBar" style="width:0%; height:100%; background:#22c55e;"></div>
     </div>
   </div>
-
-  <div class="progress-track">
-    <div class="progress-fill" id="progressBar"></div>
-  </div>
-
+  <div class="progress-track"><div class="progress-fill" id="progressBar"></div></div>
   <div class="paste-panel" id="pastePanel">
     <textarea id="customTextInput" placeholder="Paste any long AI reply, article, or book chapter here..."></textarea>
     <button class="btn-play" onclick="loadCustomText()">Load Into Reader</button>
   </div>
 </header>
-
 <div class="bookmarks-bar" id="bookmarksBar"></div>
-
 <div class="reader-container" id="readerContent">
   <h2>Part 1: How Tap-to-Teleport Works</h2>
   <p>Welcome to your Phase 1 Audio-First Reader prototype. Try tapping any word in this paragraph right now with your mouse or thumb. Notice how the voice immediately teleports to that exact word, lights it up in gold, and reads forward smoothly without forcing you to listen from the top of the page.</p>
-
   <p>Because you are an auditory-first thinker, your eyes are now free to glance at the screen whenever you want, or look away while driving from Rush. Every single time a word is spoken, this app quietly saves that exact word number into your phone memory so you never lose your place.</p>
-
   <div class="visual-table-wrap">
-    <div class="skip-badge">
-      <span>🔇 VISUAL TABLE — Automatically Skipped by Voice</span>
-    </div>
+    <div class="skip-badge"><span>🔇 VISUAL TABLE — Automatically Skipped by Voice</span></div>
     <table>
-      <thead>
-        <tr><th>Feature</th><th>Standard Screen Reader</th><th>Your CleanRead Engine</th></tr>
-      </thead>
+      <thead><tr><th>Feature</th><th>Standard Screen Reader</th><th>Your CleanRead Engine</th></tr></thead>
       <tbody>
-        <tr><td>Visual Tables</td><td>Reads every row &amp; border robotically</td><td>Auto-skips to the next paragraph</td></tr>
+        <tr><td>Visual Tables</td><td>Reads every row robotically</td><td>Auto-skips to the next paragraph</td></tr>
         <tr><td>Jumping Ahead</td><td>Locked into one audio stream</td><td>Tap any word to teleport in 20ms</td></tr>
         <tr><td>Bookmarks</td><td>None — resets when closed</td><td>Saves exact word index automatically</td></tr>
       </tbody>
     </table>
   </div>
-
   <h2>Part 2: Notice How It Just Skipped That Table!</h2>
   <p>If you let the voice play from the end of Part 1 above, you just heard it jump clean over that entire comparison table without reading a single robotic row or column header out loud. The table stays right there on the screen for your eyes to inspect, while the voice goes straight into this paragraph.</p>
-
   <h2>Part 3: Testing Teleprompter Auto-Scroll &amp; Bookmarks</h2>
   <p>As the voice continues down a long multi-screen chapter or PDF, the page gently scrolls itself so the highlighted gold word stays right in the center of your vision. If you touch the screen to scroll down manually and preview what is coming up next, auto-scroll pauses politely so it never fights your thumb.</p>
-
   <p>Whenever you hear a great idea that you want to save, just tap the Bookmark button at the top of the screen. It drops a pink pin on the exact word being spoken and adds a quick-jump chip at the top of the page so you can return to that exact sentence anytime.</p>
 </div>
-
 <script>
-let wordsList = [];
-let currentWordIdx = 0;
-let hasStartedOnce = false;
-let isPlaying = false;
-let autoScroll = true;
-let speechRate = 1.0;
-let activeUtterance = null;
-let prevWordEl = null;
-let prevBlockEl = null;
-let wordTimer = null;
-let playSessionId = 0;
-
-let kokoroTTS = null;
-let kokoroUnlocked = false;
-let currentAudio = null;
+let wordsList = [], currentWordIdx = 0, hasStartedOnce = false, isPlaying = false, autoScroll = true, speechRate = 1.0;
+let activeUtterance = null, prevWordEl = null, prevBlockEl = null, wordTimer = null, playSessionId = 0;
+let kokoroTTS = null, kokoroUnlocked = false, currentAudio = null;
 
 const STORAGE_POS_KEY = "cleanread_saved_word_idx_v1";
 const STORAGE_BM_KEY = "cleanread_bookmarks_v1";
 const synth = window.speechSynthesis;
 
 const KOKORO_VOICES = [
-  { id: "bm_george", label: "🎙️ George (UK Male Storyteller)" },
-  { id: "bf_emma",   label: "🎙️ Emma (UK Female Narrator)" },
-  { id: "bm_lewis",  label: "🎙️ Lewis (UK Deep Male)" },
-  { id: "af_heart",  label: "🎙️ Heart (US Warm Female)" },
-  { id: "af_bella",  label: "🎙️ Bella (US Clear Female)" },
-  { id: "am_michael",label: "🎙️ Michael (US Male Narrator)" }
+  { id:"bm_george", label:"🎙️ George (UK Male)" },
+  { id:"bf_emma",   label:"🎙️ Emma (UK Female)" },
+  { id:"bm_lewis",  label:"🎙️ Lewis (UK Deep Male)" },
+  { id:"af_heart",  label:"🎙️ Heart (US Warm Female)" },
+  { id:"af_bella",  label:"🎙️ Bella (US Clear Female)" },
+  { id:"am_michael",label:"🎙️ Michael (US Male)" }
 ];
 
 function populateVoiceMenu() {
   const sel = document.getElementById("voiceSelect");
   const prev = sel.value;
-  sel.innerHTML = "";
-
-  const defOpt = document.createElement("option");
-  defOpt.value = "__DEFAULT__";
-  defOpt.textContent = "📱 Default Phone Voice";
-  sel.appendChild(defOpt);
-
+  sel.innerHTML = '<option value="__DEFAULT__">📱 Default Phone Voice</option>';
   if (!kokoroUnlocked) {
-    const moreOpt = document.createElement("option");
-    moreOpt.value = "__DOWNLOAD_PACK__";
-    moreOpt.textContent = "MORE VOICE OPTIONS - Download Voice Pack";
-    sel.appendChild(moreOpt);
+    sel.innerHTML += '<option value="__DOWNLOAD_PACK__">MORE VOICE OPTIONS - Download Voice Pack</option>';
   } else {
-    KOKORO_VOICES.forEach(kv => {
-      const opt = document.createElement("option");
-      opt.value = kv.id;
-      opt.textContent = kv.label;
-      sel.appendChild(opt);
-    });
-    if (prev && prev !== "__DEFAULT__" && prev !== "__DOWNLOAD_PACK__") {
-      sel.value = prev;
-    }
+    KOKORO_VOICES.forEach(kv => { sel.innerHTML += `<option value="${kv.id}">${kv.label}</option>`; });
+    if (prev && prev !== "__DEFAULT__" && prev !== "__DOWNLOAD_PACK__") sel.value = prev;
   }
-
   sel.onchange = async () => {
-    if (sel.value === "__DOWNLOAD_PACK__") {
-      sel.value = "__DEFAULT__";
-      await downloadKokoroPack();
-      return;
-    }
+    if (sel.value === "__DOWNLOAD_PACK__") { sel.value = "__DEFAULT__"; await downloadKokoroPack(); return; }
     if (isPlaying) playFromWord(currentWordIdx);
   };
 }
 
 async function downloadKokoroPack() {
-  const banner = document.getElementById("dlBanner");
-  const txt = document.getElementById("dlStatusTxt");
-  const bar = document.getElementById("dlBar");
-  banner.style.display = "block";
-  txt.textContent = "Downloading Voice Pack (~80MB)...";
-  bar.style.width = "10%";
-
+  const banner = document.getElementById("dlBanner"), txt = document.getElementById("dlStatusTxt"), bar = document.getElementById("dlBar");
+  banner.style.display = "block"; txt.textContent = "Loading Voice Pack (~80MB)..."; bar.style.width = "10%";
   try {
-    const module = await import("https://cdn.jsdelivr.net/npm/kokoro-js@1.1.1/+esm");
-    const KokoroTTS = module.KokoroTTS;
-    kokoroTTS = await KokoroTTS.from_pretrained("onnx-community/Kokoro-82M-v1.0-ONNX", {
+    const mod = await import("https://cdn.jsdelivr.net/npm/kokoro-js@1.1.1/+esm");
+    kokoroTTS = await mod.KokoroTTS.from_pretrained("onnx-community/Kokoro-82M-v1.0-ONNX", {
       dtype: "q8",
       progress_callback: (p) => {
         if (p && p.progress !== undefined) {
-          const pct = Math.round(p.progress);
-          bar.style.width = pct + "%";
-          txt.textContent = `Downloading Voice Pack: ${pct}%`;
+          bar.style.width = Math.round(p.progress) + "%";
+          txt.textContent = `Loading Voice Pack: ${Math.round(p.progress)}%`;
         }
       }
     });
-    kokoroUnlocked = true;
-    bar.style.width = "100%";
-    txt.textContent = "✅ Voice Pack Ready!";
-    populateVoiceMenu();
-    document.getElementById("voiceSelect").value = "bm_george";
-    setTimeout(() => { banner.style.display = "none"; }, 2000);
+    kokoroUnlocked = true; bar.style.width = "100%"; txt.textContent = "✅ Voice Pack Ready!";
+    populateVoiceMenu(); document.getElementById("voiceSelect").value = "bm_george";
+    setTimeout(() => { banner.style.display = "none"; }, 1500);
     if (isPlaying) playFromWord(currentWordIdx);
-  } catch (err) {
-    txt.textContent = "⚠️ Could not load Voice Pack: " + err.message;
-  }
+  } catch (e) { txt.textContent = "⚠️ Error: " + e.message; }
 }
 
 function tokenizeDocument() {
-  wordsList = [];
-  prevWordEl = null;
-  prevBlockEl = null;
-  const container = document.getElementById("readerContent");
-  const blocks = container.querySelectorAll("h2, p");
-  let globalIdx = 0;
-
+  wordsList = []; prevWordEl = null; prevBlockEl = null;
+  const blocks = document.getElementById("readerContent").querySelectorAll("h2, p");
+  let gIdx = 0;
   blocks.forEach(block => {
     if (block.closest(".visual-table-wrap")) return;
-    const rawTokens = block.innerText.trim().split(/\s+/);
+    const tokens = block.innerText.trim().split(/\s+/);
     block.innerHTML = "";
-    rawTokens.forEach((token, i) => {
-      if (!token) return;
+    tokens.forEach((tok, i) => {
+      if (!tok) return;
       const span = document.createElement("span");
-      span.className = "word";
-      span.textContent = token;
-      const capturedIdx = globalIdx;
-      span.onclick = () => playFromWord(capturedIdx);
+      span.className = "word"; span.textContent = tok;
+      const cIdx = gIdx; span.onclick = () => playFromWord(cIdx);
       block.appendChild(span);
-      if (i < rawTokens.length - 1) {
-        block.appendChild(document.createTextNode(" "));
-      }
-      const isLastInHeading = (block.tagName === "H2" && i === rawTokens.length - 1 && !/[.!?,;:]$/.test(token));
-      const spokenText = isLastInHeading ? token + "," : token;
-      wordsList.push({ index: globalIdx, text: token, spoken: spokenText, spanEl: span, blockEl: block });
-      globalIdx++;
+      if (i < tokens.length - 1) block.appendChild(document.createTextNode(" "));
+      const isHeadEnd = (block.tagName === "H2" && i === tokens.length - 1 && !/[.!?,;:]$/.test(tok));
+      wordsList.push({ index: gIdx, text: tok, spoken: isHeadEnd ? tok + "," : tok, spanEl: span, blockEl: block });
+      gIdx++;
     });
   });
-
   const saved = parseInt(localStorage.getItem(STORAGE_POS_KEY));
-  if (!isNaN(saved) && saved > 0 && saved < wordsList.length) {
-    currentWordIdx = saved;
-    hasStartedOnce = true;
-    highlightWord(currentWordIdx);
-  }
-  updateTransportButtons();
-  renderBookmarks();
+  if (!isNaN(saved) && saved > 0 && saved < wordsList.length) { currentWordIdx = saved; hasStartedOnce = true; highlightWord(currentWordIdx); }
+  updateTransportButtons(); renderBookmarks();
 }
 
 function stopAllAudio() {
-  playSessionId++;
-  synth.cancel();
-  if (currentAudio) {
-    currentAudio.pause();
-    currentAudio.src = "";
-    currentAudio = null;
-  }
-  if (wordTimer) {
-    clearInterval(wordTimer);
-    wordTimer = null;
-  }
+  playSessionId++; synth.cancel();
+  if (currentAudio) { currentAudio.pause(); currentAudio.src = ""; currentAudio = null; }
+  if (wordTimer) { clearInterval(wordTimer); wordTimer = null; }
 }
 
-function playFromWord(startIdx) {
+// Glues headings to the first sentence below them and slices into ~16-word phrases so transitions never stall
+function buildSeamlessSentences(startIdx) {
+  const sents = []; let idx = startIdx;
+  while (idx < wordsList.length) {
+    const s = [];
+    while (idx < wordsList.length) {
+      const w = wordsList[idx++]; s.push(w);
+      if (/[.!?]$/.test(w.spoken || w.text) && s.length >= 6) break;
+      if (s.length >= 18) break;
+    }
+    if (s.length) sents.push(s);
+  }
+  return sents;
+}
+
+async function playFromWord(startIdx) {
   if (startIdx < 0 || startIdx >= wordsList.length) return;
-  stopAllAudio();
-  const mySession = playSessionId;
+  stopAllAudio(); const mySession = playSessionId;
+  currentWordIdx = startIdx; hasStartedOnce = true; isPlaying = true; autoScroll = true;
+  highlightWord(currentWordIdx); localStorage.setItem(STORAGE_POS_KEY, currentWordIdx); updateTransportButtons();
 
-  currentWordIdx = startIdx;
-  hasStartedOnce = true;
-  isPlaying = true;
-  autoScroll = true;
-  highlightWord(currentWordIdx);
-  localStorage.setItem(STORAGE_POS_KEY, currentWordIdx);
-  updateTransportButtons();
-
-  const chosenVoiceId = document.getElementById("voiceSelect").value;
-  if (chosenVoiceId && chosenVoiceId !== "__DEFAULT__" && chosenVoiceId !== "__DOWNLOAD_PACK__" && kokoroTTS) {
-    playKokoroStream(startIdx, chosenVoiceId, mySession);
-    return;
+  const vId = document.getElementById("voiceSelect").value;
+  if (vId && vId !== "__DEFAULT__" && vId !== "__DOWNLOAD_PACK__" && kokoroTTS) {
+    await playKokoroLookAhead(startIdx, vId, mySession); return;
   }
-
-  const slice = wordsList.slice(startIdx);
-  let charMap = [];
-  let pos = 0;
-  // Build cumulative character weights for the fallback Android word tracker
-  let weightedTimings = [];
-  let totalWeight = 0;
-
-  const fullText = slice.map(item => {
-    const spk = item.spoken || item.text;
-    charMap.push({ start: pos, end: pos + spk.length, wordIdx: item.index });
-    pos += spk.length + 1;
-
-    // Weight per word: base letters + extra pause weight for commas/periods
-    let weight = Math.max(3, spk.length);
-    if (/[.!?]$/.test(spk)) weight += 7;
-    else if (/[,;:]$/.test(spk)) weight += 4;
-    totalWeight += weight;
-    weightedTimings.push({ cumWeight: totalWeight, wordIdx: item.index });
-
-    return spk;
-  }).join(" ");
-
-  const utter = new SpeechSynthesisUtterance(fullText);
-  utter.rate = speechRate;
-  activeUtterance = utter;
-
-  let boundaryWorking = false;
-  let speechStartTime = Date.now();
-  // Average speaking cadence: ~58ms per weight unit at 1.0x speed
-  const estTotalMs = (totalWeight * 58) / speechRate;
-
-  // Hybrid Android + Desktop Tracker: moves gold word smoothly even when Android Chrome suppresses onboundary!
-  wordTimer = setInterval(() => {
-    if (mySession !== playSessionId || !isPlaying) {
-      clearInterval(wordTimer);
-      return;
-    }
-    if (boundaryWorking) return; // Desktop/native boundary is active, let it drive
-
-    const elapsed = Date.now() - speechStartTime;
-    const ratio = Math.min(0.995, elapsed / estTotalMs);
-    const targetWeight = ratio * totalWeight;
-
-    for (let i = 0; i < weightedTimings.length; i++) {
-      if (weightedTimings[i].cumWeight >= targetWeight) {
-        const wIdx = weightedTimings[i].wordIdx;
-        if (wIdx !== currentWordIdx) {
-          currentWordIdx = wIdx;
-          highlightWord(currentWordIdx);
-          localStorage.setItem(STORAGE_POS_KEY, currentWordIdx);
-        }
-        break;
-      }
-    }
-  }, 60);
-
-  utter.onboundary = (event) => {
+  const sents = buildSeamlessSentences(startIdx);
+  for (let i = 0; i < sents.length; i++) {
     if (mySession !== playSessionId) return;
-    if (event.charIndex !== undefined) {
-      boundaryWorking = true; // Native word boundary confirmed working!
-      const chIdx = event.charIndex;
-      for (let i = 0; i < charMap.length; i++) {
-        if (chIdx >= charMap[i].start && chIdx <= charMap[i].end + 1) {
-          const wIdx = charMap[i].wordIdx;
-          if (wIdx !== currentWordIdx) {
-            currentWordIdx = wIdx;
-            highlightWord(currentWordIdx);
-            localStorage.setItem(STORAGE_POS_KEY, currentWordIdx);
-          }
-          break;
-        }
-      }
-    }
-  };
-
-  utter.onend = () => {
-    if (mySession === playSessionId) {
-      if (wordTimer) clearInterval(wordTimer);
-      isPlaying = false;
-      updateTransportButtons();
-    }
-  };
-
-  synth.speak(utter);
+    await speakOneSentence(sents[i], mySession);
+  }
+  if (mySession === playSessionId) { isPlaying = false; updateTransportButtons(); }
 }
 
-async function playKokoroStream(startIdx, voiceId, mySession) {
-  let idx = startIdx;
-  while (idx < wordsList.length && mySession === playSessionId) {
-    const startBlock = wordsList[idx].blockEl;
-    const chunkWords = [];
-    while (idx < wordsList.length && wordsList[idx].blockEl === startBlock) {
-      chunkWords.push(wordsList[idx]);
-      idx++;
-    }
-    const text = chunkWords.map(w => w.spoken || w.text).join(" ");
-    await new Promise(r => setTimeout(r, 20));
-    if (mySession !== playSessionId) return;
-
-    const res = await kokoroTTS.generate(text, { voice: voiceId, speed: speechRate });
-    if (mySession !== playSessionId) return;
-    const url = URL.createObjectURL(res.toBlob());
-
-    await new Promise((resolve) => {
-      const audio = new Audio(url);
-      currentAudio = audio;
-      audio.onloadedmetadata = () => {
-        const durationMs = (audio.duration || 2.0) * 1000;
-        const totalChars = chunkWords.reduce((acc, w) => acc + w.text.length, 0) || 1;
-        wordTimer = setInterval(() => {
-          if (mySession !== playSessionId) { clearInterval(wordTimer); resolve(); return; }
-          const ratio = Math.min(1, (audio.currentTime * 1000) / durationMs);
-          const targetChar = ratio * totalChars;
-          let run = 0;
-          for (let cw of chunkWords) {
-            run += cw.text.length;
-            if (run >= targetChar) {
-              if (currentWordIdx !== cw.index) {
-                currentWordIdx = cw.index;
-                highlightWord(currentWordIdx);
-                localStorage.setItem(STORAGE_POS_KEY, currentWordIdx);
-              }
-              break;
-            }
-          }
-        }, 50);
-        audio.play();
-      };
-      audio.onended = () => { clearInterval(wordTimer); URL.revokeObjectURL(url); resolve(); };
-      audio.onerror = () => { clearInterval(wordTimer); resolve(); };
-    });
+async function playKokoroLookAhead(startIdx, voiceId, mySession) {
+  const sents = buildSeamlessSentences(startIdx);
+  async function genClip(sw) {
+    const res = await kokoroTTS.generate(sw.map(w => w.spoken || w.text).join(" "), { voice: voiceId, speed: speechRate });
+    return URL.createObjectURL(res.toBlob());
   }
-  if (mySession === playSessionId) {
-    isPlaying = false;
-    updateTransportButtons();
+  let nextPromise = genClip(sents[0]);
+  for (let i = 0; i < sents.length; i++) {
+    if (mySession !== playSessionId) return;
+    const url = await nextPromise;
+    if (!url || mySession !== playSessionId) return;
+    nextPromise = (i + 1 < sents.length) ? new Promise(r => setTimeout(async () => r(mySession === playSessionId ? await genClip(sents[i+1]) : null), 60)) : Promise.resolve(null);
+    await playClipSynced(url, sents[i], mySession);
   }
+  if (mySession === playSessionId) { isPlaying = false; updateTransportButtons(); }
+}
+
+function playClipSynced(url, sentWords, mySession) {
+  return new Promise(resolve => {
+    const audio = new Audio(url); currentAudio = audio;
+    let timings = [], totalW = 0;
+    sentWords.forEach(w => { totalW += Math.max(4, w.text.length + 1); timings.push({ cw: totalW, idx: w.index }); });
+    audio.onloadedmetadata = () => {
+      const dur = Math.max(500, (audio.duration || 1.6) * 1000);
+      currentWordIdx = sentWords[0].index; highlightWord(currentWordIdx);
+      wordTimer = setInterval(() => {
+        if (mySession !== playSessionId) { clearInterval(wordTimer); resolve(); return; }
+        const target = Math.min(0.98, (audio.currentTime * 1000) / dur) * totalW;
+        for (let t of timings) { if (t.cw >= target) { if (currentWordIdx !== t.idx) { currentWordIdx = t.idx; highlightWord(currentWordIdx); localStorage.setItem(STORAGE_POS_KEY, currentWordIdx); } break; } }
+      }, 50);
+      audio.play();
+    };
+    audio.onended = audio.onerror = () => { clearInterval(wordTimer); URL.revokeObjectURL(url); resolve(); };
+  });
+}
+
+function speakOneSentence(sentWords, mySession) {
+  return new Promise(resolve => {
+    let charMap = [], pos = 0, timings = [], totalW = 0;
+    const text = sentWords.map(w => {
+      const spk = w.spoken || w.text;
+      charMap.push({ start: pos, end: pos + spk.length, idx: w.index }); pos += spk.length + 1;
+      totalW += Math.max(4, spk.length + ( /[,;:—-]$/.test(spk) ? 6 : 1 ));
+      timings.push({ cw: totalW, idx: w.index }); return spk;
+    }).join(" ");
+    const utter = new SpeechSynthesisUtterance(text); utter.rate = speechRate; activeUtterance = utter;
+    currentWordIdx = sentWords[0].index; highlightWord(currentWordIdx); localStorage.setItem(STORAGE_POS_KEY, currentWordIdx);
+    let bFired = false, tStart = null, estMs = ((totalW * 88) / speechRate) + 200;
+    utter.onstart = () => { tStart = Date.now(); };
+    wordTimer = setInterval(() => {
+      if (mySession !== playSessionId || !isPlaying) { clearInterval(wordTimer); return; }
+      if (bFired || !tStart) return;
+      const target = Math.min(0.95, Math.max(0, Date.now() - tStart - 100) / estMs) * totalW;
+      for (let t of timings) { if (t.cw >= target) { if (currentWordIdx !== t.idx) { currentWordIdx = t.idx; highlightWord(currentWordIdx); localStorage.setItem(STORAGE_POS_KEY, currentWordIdx); } break; } }
+    }, 60);
+    utter.onboundary = (e) => {
+      if (mySession !== playSessionId || e.charIndex === undefined) return;
+      bFired = true;
+      for (let c of charMap) { if (e.charIndex >= c.start && e.charIndex <= c.end + 1) { currentWordIdx = c.idx; highlightWord(currentWordIdx); localStorage.setItem(STORAGE_POS_KEY, currentWordIdx); break; } }
+    };
+    utter.onend = utter.onerror = () => { clearInterval(wordTimer); resolve(); };
+    synth.speak(utter);
+  });
 }
 
 function highlightWord(idx) {
-  const item = wordsList[idx];
-  if (!item) return;
-
+  const item = wordsList[idx]; if (!item) return;
   if (prevWordEl && prevWordEl !== item.spanEl) prevWordEl.classList.remove("active-word");
   if (prevBlockEl && prevBlockEl !== item.blockEl) prevBlockEl.classList.remove("active-block");
-
-  item.spanEl.classList.add("active-word");
-  item.blockEl.classList.add("active-block");
-  prevWordEl = item.spanEl;
-  prevBlockEl = item.blockEl;
-
-  const pct = Math.round(((idx + 1) / wordsList.length) * 100);
-  document.getElementById("progressBar").style.width = pct + "%";
-
+  item.spanEl.classList.add("active-word"); item.blockEl.classList.add("active-block");
+  prevWordEl = item.spanEl; prevBlockEl = item.blockEl;
+  document.getElementById("progressBar").style.width = Math.round(((idx + 1) / wordsList.length) * 100) + "%";
   if (autoScroll) {
-    const rect = item.spanEl.getBoundingClientRect();
-    if (rect.top < 150 || rect.bottom > window.innerHeight - 90) {
-      item.spanEl.scrollIntoView({ behavior: "smooth", block: "center" });
-    }
+    const r = item.spanEl.getBoundingClientRect();
+    if (r.top < 150 || r.bottom > window.innerHeight - 90) item.spanEl.scrollIntoView({ behavior: "smooth", block: "center" });
   }
 }
 
 function togglePlay() {
-  if (isPlaying) {
-    stopAllAudio();
-    isPlaying = false;
-    localStorage.setItem(STORAGE_POS_KEY, currentWordIdx);
-    updateTransportButtons();
-  } else {
-    playFromWord(currentWordIdx);
-  }
+  if (isPlaying) { stopAllAudio(); isPlaying = false; localStorage.setItem(STORAGE_POS_KEY, currentWordIdx); updateTransportButtons(); }
+  else playFromWord(currentWordIdx);
 }
-
-function restartFromTop() {
-  localStorage.removeItem(STORAGE_POS_KEY);
-  playFromWord(0);
-}
-
+function restartFromTop() { localStorage.removeItem(STORAGE_POS_KEY); playFromWord(0); }
 function updateTransportButtons() {
-  const playBtn = document.getElementById("playPauseBtn");
-  const restartBtn = document.getElementById("restartBtn");
-
-  if (isPlaying) {
-    playBtn.textContent = "⏸ Pause";
-  } else if (hasStartedOnce || currentWordIdx > 0) {
-    playBtn.textContent = "▶ Resume";
-  } else {
-    playBtn.textContent = "▶ Play";
-  }
-
-  restartBtn.style.display = (hasStartedOnce || currentWordIdx > 0) ? "inline-block" : "none";
+  document.getElementById("playPauseBtn").textContent = isPlaying ? "⏸ Pause" : ((hasStartedOnce || currentWordIdx > 0) ? "▶ Resume" : "▶ Play");
+  document.getElementById("restartBtn").style.display = (hasStartedOnce || currentWordIdx > 0) ? "inline-block" : "none";
 }
-
-function changeSpeed() {
-  speechRate = parseFloat(document.getElementById("speedSelect").value);
-  if (isPlaying) playFromWord(currentWordIdx);
-}
-
+function changeSpeed() { speechRate = parseFloat(document.getElementById("speedSelect").value); if (isPlaying) playFromWord(currentWordIdx); }
 function dropPinBookmark() {
   const bms = JSON.parse(localStorage.getItem(STORAGE_BM_KEY) || "[]");
-  const item = wordsList[currentWordIdx];
-  if (!item) return;
-  const snippet = wordsList.slice(currentWordIdx, currentWordIdx + 4).map(w => w.text).join(" ") + "...";
-  bms.push({ idx: currentWordIdx, label: `📌 "${snippet}"` });
-  localStorage.setItem(STORAGE_BM_KEY, JSON.stringify(bms));
-  renderBookmarks();
+  if (!wordsList[currentWordIdx]) return;
+  bms.push({ idx: currentWordIdx, label: `📌 "${wordsList.slice(currentWordIdx, currentWordIdx + 4).map(w => w.text).join(" ")}..."` });
+  localStorage.setItem(STORAGE_BM_KEY, JSON.stringify(bms)); renderBookmarks();
 }
-
 function renderBookmarks() {
-  const bms = JSON.parse(localStorage.getItem(STORAGE_BM_KEY) || "[]");
-  const bar = document.getElementById("bookmarksBar");
-  bar.innerHTML = "";
-  document.querySelectorAll(".bookmarked-word").forEach(el => el.classList.remove("bookmarked-word"));
-
-  bms.forEach((bm) => {
+  const bms = JSON.parse(localStorage.getItem(STORAGE_BM_KEY) || "[]"), bar = document.getElementById("bookmarksBar");
+  bar.innerHTML = ""; document.querySelectorAll(".bookmarked-word").forEach(el => el.classList.remove("bookmarked-word"));
+  bms.forEach(bm => {
     if (wordsList[bm.idx]) wordsList[bm.idx].spanEl.classList.add("bookmarked-word");
-    const chip = document.createElement("div");
-    chip.className = "bm-chip";
-    chip.textContent = bm.label;
-    chip.onclick = () => playFromWord(bm.idx);
-    bar.appendChild(chip);
+    const c = document.createElement("div"); c.className = "bm-chip"; c.textContent = bm.label; c.onclick = () => playFromWord(bm.idx); bar.appendChild(c);
   });
 }
-
 window.addEventListener("wheel", () => { if (isPlaying) autoScroll = false; }, { passive: true });
 window.addEventListener("touchmove", () => { if (isPlaying) autoScroll = false; }, { passive: true });
-
-function togglePastePanel() {
-  document.getElementById("pastePanel").classList.toggle("open");
-}
-
+function togglePastePanel() { document.getElementById("pastePanel").classList.toggle("open"); }
 function loadCustomText() {
-  const raw = document.getElementById("customTextInput").value.trim();
-  if (!raw) return;
-  stopAllAudio();
-  isPlaying = false;
-  currentWordIdx = 0;
-  hasStartedOnce = false;
-  const container = document.getElementById("readerContent");
-  const paras = raw.split(/\n\s*\n/);
-  container.innerHTML = "<h2>Custom Loaded Document</h2>" + paras.map(p => `<p>${p.replace(/\n/g, " ")}</p>`).join("");
-  localStorage.removeItem(STORAGE_POS_KEY);
-  localStorage.removeItem(STORAGE_BM_KEY);
-  document.getElementById("pastePanel").classList.remove("open");
-  tokenizeDocument();
-  playFromWord(0);
+  const raw = document.getElementById("customTextInput").value.trim(); if (!raw) return;
+  stopAllAudio(); isPlaying = false; currentWordIdx = 0; hasStartedOnce = false;
+  document.getElementById("readerContent").innerHTML = "<h2>Custom Loaded Document</h2>" + raw.split(/\n\s*\n/).map(p => `<p>${p.replace(/\n/g, " ")}</p>`).join("");
+  localStorage.removeItem(STORAGE_POS_KEY); localStorage.removeItem(STORAGE_BM_KEY);
+  document.getElementById("pastePanel").classList.remove("open"); tokenizeDocument(); playFromWord(0);
 }
-
-populateVoiceMenu();
-tokenizeDocument();
+populateVoiceMenu(); tokenizeDocument();
 </script>
 </body>
 </html>
