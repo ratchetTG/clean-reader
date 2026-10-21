@@ -178,8 +178,6 @@ function stopAllAudio() {
   if (currentAudio) { currentAudio.pause(); currentAudio.src = ""; currentAudio = null; }
   if (wordTimer) { clearInterval(wordTimer); wordTimer = null; }
 }
-
-// Glues headings to the first sentence below them and slices into ~16-word phrases so transitions never stall
 function buildSeamlessSentences(startIdx) {
   const sents = []; let idx = startIdx;
   while (idx < wordsList.length) {
