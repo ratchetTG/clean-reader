@@ -191,13 +191,11 @@ function buildSeamlessSentences(startIdx) {
   }
   return sents;
 }
-
 async function playFromWord(startIdx) {
   if (startIdx < 0 || startIdx >= wordsList.length) return;
   stopAllAudio(); const mySession = playSessionId;
   currentWordIdx = startIdx; hasStartedOnce = true; isPlaying = true; autoScroll = true;
   highlightWord(currentWordIdx); localStorage.setItem(STORAGE_POS_KEY, currentWordIdx); updateTransportButtons();
-
   const vId = document.getElementById("voiceSelect").value;
   if (vId && vId !== "__DEFAULT__" && vId !== "__DOWNLOAD_PACK__" && kokoroTTS) {
     await playKokoroLookAhead(startIdx, vId, mySession); return;
@@ -209,7 +207,6 @@ async function playFromWord(startIdx) {
   }
   if (mySession === playSessionId) { isPlaying = false; updateTransportButtons(); }
 }
-
 async function playKokoroLookAhead(startIdx, voiceId, mySession) {
   const sents = buildSeamlessSentences(startIdx);
   async function genClip(sw) {
@@ -226,7 +223,6 @@ async function playKokoroLookAhead(startIdx, voiceId, mySession) {
   }
   if (mySession === playSessionId) { isPlaying = false; updateTransportButtons(); }
 }
-
 function playClipSynced(url, sentWords, mySession) {
   return new Promise(resolve => {
     const audio = new Audio(url); currentAudio = audio;
@@ -245,7 +241,6 @@ function playClipSynced(url, sentWords, mySession) {
     audio.onended = audio.onerror = () => { clearInterval(wordTimer); URL.revokeObjectURL(url); resolve(); };
   });
 }
-
 function speakOneSentence(sentWords, mySession) {
   return new Promise(resolve => {
     let charMap = [], pos = 0, timings = [], totalW = 0;
@@ -274,7 +269,6 @@ function speakOneSentence(sentWords, mySession) {
     synth.speak(utter);
   });
 }
-
 function highlightWord(idx) {
   const item = wordsList[idx]; if (!item) return;
   if (prevWordEl && prevWordEl !== item.spanEl) prevWordEl.classList.remove("active-word");
@@ -287,7 +281,6 @@ function highlightWord(idx) {
     if (r.top < 150 || r.bottom > window.innerHeight - 90) item.spanEl.scrollIntoView({ behavior: "smooth", block: "center" });
   }
 }
-
 function togglePlay() {
   if (isPlaying) { stopAllAudio(); isPlaying = false; localStorage.setItem(STORAGE_POS_KEY, currentWordIdx); updateTransportButtons(); }
   else playFromWord(currentWordIdx);
