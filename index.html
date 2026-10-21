@@ -152,10 +152,9 @@
       <option value="1.3">1.3x Fast</option>
       <option value="1.5">1.5x Turbo</option>
     </select>
-    <select id="voiceSelect" style="max-width:210px;"></select>
+    <select id="voiceSelect" style="max-width:230px;"></select>
   </div>
 
-  
   <div id="dlBanner" style="display:none; width:100%; max-width:680px; background:#1e293b; border:1px solid #38bdf8; border-radius:8px; padding:10px 14px; font-size:0.9rem; font-weight:700; color:#f8fafc;">
     <div id="dlStatusTxt">Downloading Neural Voice Pack into Browser Cache (0%)...</div>
     <div style="width:100%; height:8px; background:#0f172a; border-radius:4px; margin-top:6px; overflow:hidden;">
@@ -216,12 +215,31 @@ let speechRate = 1.0;
 let selectedVoice = null;
 let activeUtterance = null;
 
+let kokoroTTS = null;
+let kokoroUnlocked = localStorage.getItem("cleanread_kokoro_unlocked_v1") === "true";
+let currentAudio = null;
+let wordTimer = null;
+let playSessionId = 0;
+let prevWordEl = null;
+let prevBlockEl = null;
+
 const STORAGE_POS_KEY = "cleanread_saved_word_idx_v1";
 const STORAGE_BM_KEY = "cleanread_bookmarks_v1";
 const synth = window.speechSynthesis;
 
+const KOKORO_VOICES = [
+  { id: "bm_george", label: "🎙️ George (UK Male Storyteller)" },
+  { id: "bf_emma",   label: "🎙️ Emma (UK Female Narrator)" },
+  { id: "bm_lewis",  label: "🎙️ Lewis (UK Deep Male)" },
+  { id: "af_heart",  label: "🎙️ Heart (US Warm Female)" },
+  { id: "af_bella",  label: "🎙️ Bella (US Clear Female)" },
+  { id: "am_michael",label: "🎙️ Michael (US Male Narrator)" }
+];
+
 function tokenizeDocument() {
   wordsList = [];
+  prevWordEl = null;
+  prevBlockEl = null;
   const container = document.getElementById("readerContent");
   const blocks = container.querySelectorAll("h2, p");
   let globalIdx = 0;
@@ -242,7 +260,8 @@ function tokenizeDocument() {
       if (i < rawTokens.length - 1) {
         block.appendChild(document.createTextNode(" "));
       }
-      const isLastInHeading = (block.tagName === "H2" && i === rawTokens.length - 1 && !/[.!?]$/.test(token));
+      // Subtle comma after heading so it pauses naturally without breaking the stream
+      const isLastInHeading = (block.tagName === "H2" && i === rawTokens.length - 1 && !/[.!?,;:]$/.test(token));
       const spokenText = isLastInHeading ? token + "," : token;
       wordsList.push({ index: globalIdx, text: token, spoken: spokenText, spanEl: span, blockEl: block });
       globalIdx++;
@@ -252,21 +271,6 @@ function tokenizeDocument() {
   checkSavedResume();
   renderBookmarks();
 }
-
-let kokoroTTS = null;
-let kokoroUnlocked = localStorage.getItem("cleanread_kokoro_unlocked_v1") === "true";
-let currentAudio = null;
-let wordTimer = null;
-let playSessionId = 0;
-
-const KOKORO_VOICES = [
-  { id: "bm_george", label: "🎙️ George (UK Male Storyteller)" },
-  { id: "bf_emma",   label: "🎙️ Emma (UK Female Narrator)" },
-  { id: "bm_lewis",  label: "🎙️ Lewis (UK Deep Male)" },
-  { id: "af_heart",  label: "🎙️ Heart (US Warm Female)" },
-  { id: "af_bella",  label: "🎙️ Bella (US Clear Female)" },
-  { id: "am_michael",label: "🎙️ Michael (US Male Narrator)" }
-];
 
 function loadVoices() {
   const voices = synth.getVoices();
@@ -359,19 +363,7 @@ function stopAllAudio() {
   }
 }
 
-// Group words into large continuous blocks (150+ words across headings & paragraphs) with ZERO sentence chopping
-function buildContinuousBlocks(startIdx, wordsPerBlock) {
-  const blocks = [];
-  let idx = startIdx;
-  while (idx < wordsList.length) {
-    const chunk = wordsList.slice(idx, idx + wordsPerBlock);
-    blocks.push(chunk);
-    idx += wordsPerBlock;
-  }
-  return blocks;
-}
-
-async function playFromWord(startIdx) {
+function playFromWord(startIdx) {
   if (startIdx < 0 || startIdx >= wordsList.length) return;
   stopAllAudio();
   const mySession = playSessionId;
@@ -386,159 +378,136 @@ async function playFromWord(startIdx) {
 
   const chosenVoiceId = document.getElementById("voiceSelect").value;
 
+  // Path A: Neural Voice Pack
   if (chosenVoiceId && chosenVoiceId !== "__DEFAULT__" && chosenVoiceId !== "__DOWNLOAD_PACK__") {
-    if (!kokoroTTS) {
-      await downloadKokoroPack();
-      if (!kokoroTTS || mySession !== playSessionId) return;
-    }
-    await playKokoroContinuous(startIdx, chosenVoiceId, mySession);
+    setTimeout(async () => {
+      if (!kokoroTTS) {
+        await downloadKokoroPack();
+        if (!kokoroTTS || mySession !== playSessionId) return;
+      }
+      await playKokoroParagraphs(startIdx, chosenVoiceId, mySession);
+    }, 30);
     return;
   }
 
-  // Default Voice: Continuous 180-word blocks (never stops at headings or periods!)
-  const bigBlocks = buildContinuousBlocks(startIdx, 180);
-  for (let b = 0; b < bigBlocks.length; b++) {
+  // Path B: Exact original Train Prototype engine for Default Voice (zero choking!)
+  const slice = wordsList.slice(startIdx);
+  let charMap = [];
+  let pos = 0;
+  const fullText = slice.map(item => {
+    const spk = item.spoken || item.text;
+    charMap.push({ start: pos, end: pos + spk.length, wordIdx: item.index });
+    pos += spk.length + 1;
+    return spk;
+  }).join(" ");
+
+  const utter = new SpeechSynthesisUtterance(fullText);
+  utter.rate = speechRate;
+  activeUtterance = utter;
+
+  let lastHighlightIdx = -1;
+  utter.onboundary = (event) => {
     if (mySession !== playSessionId) return;
-    await speakNativeContinuous(bigBlocks[b], mySession);
-  }
-
-  if (mySession === playSessionId) {
-    isPlaying = false;
-    updatePlayButton();
-  }
-}
-
-function speakNativeContinuous(chunkWords, mySession) {
-  return new Promise((resolve) => {
-    if (mySession !== playSessionId) { resolve(); return; }
-
-    let charMap = [];
-    let pos = 0;
-    const chunkText = chunkWords.map(item => {
-      const spk = item.spoken || item.text;
-      charMap.push({ start: pos, end: pos + spk.length, wordIdx: item.index });
-      pos += spk.length + 1;
-      return spk;
-    }).join(" ");
-
-    const utter = new SpeechSynthesisUtterance(chunkText);
-    utter.rate = speechRate;
-    if (selectedVoice) {
-      utter.voice = selectedVoice;
-      utter.lang = selectedVoice.lang;
-    }
-    activeUtterance = utter;
-
-    currentWordIdx = chunkWords[0].index;
-    highlightWord(currentWordIdx);
-    saveWordMemory(currentWordIdx);
-
-    utter.onboundary = (event) => {
-      if (mySession !== playSessionId) return;
-      if (event.name === "word" || event.charIndex !== undefined) {
-        const chIdx = event.charIndex;
-        for (let i = 0; i < charMap.length; i++) {
-          if (chIdx >= charMap[i].start && chIdx <= charMap[i].end + 1) {
-            currentWordIdx = charMap[i].wordIdx;
+    if (event.charIndex !== undefined) {
+      const chIdx = event.charIndex;
+      for (let i = 0; i < charMap.length; i++) {
+        if (chIdx >= charMap[i].start && chIdx <= charMap[i].end + 1) {
+          const wIdx = charMap[i].wordIdx;
+          if (wIdx !== lastHighlightIdx) {
+            lastHighlightIdx = wIdx;
+            currentWordIdx = wIdx;
             highlightWord(currentWordIdx);
-            saveWordMemory(currentWordIdx);
-            break;
+            if (wIdx % 4 === 0) saveWordMemory(currentWordIdx);
           }
+          break;
         }
       }
-    };
+    }
+  };
 
-    utter.onend = () => resolve();
-    utter.onerror = () => resolve();
+  utter.onend = () => {
+    if (mySession === playSessionId) {
+      saveWordMemory(currentWordIdx);
+      isPlaying = false;
+      updatePlayButton();
+    }
+  };
 
-    synth.speak(utter);
-  });
+  synth.speak(utter);
 }
 
-// Neural Voice: Full paragraph flow so sentences inside a paragraph have zero artificial gaps
-async function playKokoroContinuous(startIdx, voiceId, mySession) {
-  const blocks = buildContinuousBlocks(startIdx, 55);
-  for (let i = 0; i < blocks.length; i++) {
-    if (mySession !== playSessionId) return;
-    const chunkWords = blocks[i];
+async function playKokoroParagraphs(startIdx, voiceId, mySession) {
+  let idx = startIdx;
+  while (idx < wordsList.length && mySession === playSessionId) {
+    const startBlock = wordsList[idx].blockEl;
+    const chunkWords = [];
+    while (idx < wordsList.length && wordsList[idx].blockEl === startBlock) {
+      chunkWords.push(wordsList[idx]);
+      idx++;
+    }
     const text = chunkWords.map(w => w.spoken || w.text).join(" ");
-    document.getElementById("progressTxt").textContent = `🎙️ Loading paragraph audio...`;
-    await new Promise(r => setTimeout(r, 15));
+    document.getElementById("progressTxt").textContent = "🎙️ Preparing neural paragraph...";
+    await new Promise(r => setTimeout(r, 20));
     if (mySession !== playSessionId) return;
 
     const res = await kokoroTTS.generate(text, { voice: voiceId, speed: speechRate });
     if (mySession !== playSessionId) return;
-    const audioUrl = URL.createObjectURL(res.toBlob());
-    await playAudioBlobWithHighlight(audioUrl, chunkWords, mySession);
-  }
+    const url = URL.createObjectURL(res.toBlob());
 
+    await new Promise((resolve) => {
+      const audio = new Audio(url);
+      currentAudio = audio;
+      audio.onloadedmetadata = () => {
+        const durationMs = (audio.duration || 2.0) * 1000;
+        const totalChars = chunkWords.reduce((acc, w) => acc + w.text.length, 0) || 1;
+        wordTimer = setInterval(() => {
+          if (mySession !== playSessionId) { clearInterval(wordTimer); resolve(); return; }
+          const ratio = Math.min(1, (audio.currentTime * 1000) / durationMs);
+          const targetChar = ratio * totalChars;
+          let run = 0;
+          for (let cw of chunkWords) {
+            run += cw.text.length;
+            if (run >= targetChar) {
+              if (currentWordIdx !== cw.index) {
+                currentWordIdx = cw.index;
+                highlightWord(currentWordIdx);
+              }
+              break;
+            }
+          }
+        }, 60);
+        audio.play();
+      };
+      audio.onended = () => { clearInterval(wordTimer); URL.revokeObjectURL(url); saveWordMemory(currentWordIdx); resolve(); };
+      audio.onerror = () => { clearInterval(wordTimer); resolve(); };
+    });
+  }
   if (mySession === playSessionId) {
     isPlaying = false;
     updatePlayButton();
   }
 }
 
-function playAudioBlobWithHighlight(url, chunkWords, mySession) {
-  return new Promise((resolve) => {
-    if (mySession !== playSessionId) { URL.revokeObjectURL(url); resolve(); return; }
-    const audio = new Audio(url);
-    currentAudio = audio;
-
-    audio.onloadedmetadata = () => {
-      const durationMs = (audio.duration || 2.0) * 1000;
-      const totalChars = chunkWords.reduce((acc, w) => acc + w.text.length, 0) || 1;
-
-      currentWordIdx = chunkWords[0].index;
-      highlightWord(currentWordIdx);
-      saveWordMemory(currentWordIdx);
-
-      wordTimer = setInterval(() => {
-        if (mySession !== playSessionId) { clearInterval(wordTimer); resolve(); return; }
-        const progressRatio = Math.min(1, (audio.currentTime * 1000) / durationMs);
-        const targetChar = progressRatio * totalChars;
-        let runningChars = 0;
-        for (let cw of chunkWords) {
-          runningChars += cw.text.length;
-          if (runningChars >= targetChar) {
-            if (currentWordIdx !== cw.index) {
-              currentWordIdx = cw.index;
-              highlightWord(currentWordIdx);
-              saveWordMemory(currentWordIdx);
-            }
-            break;
-          }
-        }
-      }, 45);
-
-      audio.play();
-    };
-
-    audio.onended = () => {
-      if (wordTimer) clearInterval(wordTimer);
-      URL.revokeObjectURL(url);
-      resolve();
-    };
-    audio.onerror = () => {
-      if (wordTimer) clearInterval(wordTimer);
-      resolve();
-    };
-  });
-}
-
 function highlightWord(idx) {
-  document.querySelectorAll(".word.active-word").forEach(el => el.classList.remove("active-word"));
-  document.querySelectorAll(".active-block").forEach(el => el.classList.remove("active-block"));
-
   const item = wordsList[idx];
   if (!item) return;
+
+  if (prevWordEl && prevWordEl !== item.spanEl) prevWordEl.classList.remove("active-word");
+  if (prevBlockEl && prevBlockEl !== item.blockEl) prevBlockEl.classList.remove("active-block");
+
   item.spanEl.classList.add("active-word");
   item.blockEl.classList.add("active-block");
+  prevWordEl = item.spanEl;
+  prevBlockEl = item.blockEl;
 
   const pct = Math.round(((idx + 1) / wordsList.length) * 100);
   document.getElementById("progressTxt").textContent = `Word #${idx + 1} of ${wordsList.length} (${pct}%) — "${item.text}"`;
 
   if (autoScroll) {
-    item.spanEl.scrollIntoView({ behavior: "smooth", block: "center" });
+    const rect = item.spanEl.getBoundingClientRect();
+    if (rect.top < 160 || rect.bottom > window.innerHeight - 100) {
+      item.spanEl.scrollIntoView({ behavior: "smooth", block: "center" });
+    }
   }
 }
 
@@ -646,4 +615,3 @@ tokenizeDocument();
 </script>
 </body>
 </html>
-
