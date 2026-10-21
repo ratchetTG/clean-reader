@@ -234,7 +234,9 @@ function tokenizeDocument() {
       if (i < rawTokens.length - 1) {
         block.appendChild(document.createTextNode(" "));
       }
-      wordsList.push({ index: globalIdx, text: token, spanEl: span, blockEl: block });
+      const isLastInHeading = (block.tagName === "H2" && i === rawTokens.length - 1 && !/[.!?]$/.test(token));
+      const spokenText = isLastInHeading ? token + "." : token;
+      wordsList.push({ index: globalIdx, text: token, spoken: spokenText, spanEl: span, blockEl: block });
       globalIdx++;
     });
   });
@@ -282,14 +284,18 @@ function playFromWord(startIdx) {
   let charMap = [];
   let pos = 0;
   const fullText = slice.map(item => {
-    charMap.push({ start: pos, end: pos + item.text.length, wordIdx: item.index });
-    pos += item.text.length + 1;
-    return item.text;
+    const spk = item.spoken || item.text;
+    charMap.push({ start: pos, end: pos + spk.length, wordIdx: item.index });
+    pos += spk.length + 1;
+    return spk;
   }).join(" ");
 
   const utter = new SpeechSynthesisUtterance(fullText);
   utter.rate = speechRate;
-  if (selectedVoice) utter.voice = selectedVoice;
+  if (selectedVoice) {
+    utter.voice = selectedVoice;
+    utter.lang = selectedVoice.lang;
+  }
   activeUtterance = utter;
 
   utter.onboundary = (event) => {

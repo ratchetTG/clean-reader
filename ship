@@ -1,0 +1,5 @@
+#!/bin/bash
+git add .
+git commit -m "Update CleanRead: $(date +'%Y-%m-%d %H:%M')"
+git push
+echo "🚀 CleanRead update shipped to your phone!"
