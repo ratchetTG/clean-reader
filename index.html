@@ -1,1 +1,440 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+<title>CleanRead — Tap-to-Listen Audio Reader</title>
+<style>
+  :root {
+    --bg: #0f172a;
+    --panel: #1e293b;
+    --text: #f8fafc;
+    --muted: #94a3b8;
+    --accent: #38bdf8;
+    --gold: #facc15;
+    --green: #22c55e;
+  }
+  * { box-sizing: border-box; -webkit-tap-highlight-color: transparent; }
+  body {
+    margin: 0; padding: 0;
+    background: radial-gradient(circle at 50% 15%, #28374d 0%, #0f172a 75%);
+    background-attachment: fixed;
+    color: var(--text);
+    font-family: system-ui, -apple-system, sans-serif;
+    display: flex; flex-direction: column; align-items: center;
+    padding-bottom: 140px;
+  }
+  header {
+    position: sticky; top: 0; z-index: 50;
+    width: 100%; background: rgba(15, 23, 42, 0.92);
+    backdrop-filter: blur(12px);
+    border-bottom: 1px solid rgba(255,255,255,0.12);
+    padding: 12px 16px;
+    display: flex; flex-direction: column; align-items: center; gap: 10px;
+    box-shadow: 0 8px 20px rgba(0,0,0,0.4);
+  }
+  .top-bar {
+    width: 100%; max-width: 680px;
+    display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 8px;
+  }
+  h1 { font-size: 1.15rem; letter-spacing: 1.5px; margin: 0; color: var(--accent); }
+  .controls {
+    width: 100%; max-width: 680px;
+    display: flex; gap: 8px; align-items: center; flex-wrap: wrap;
+  }
+  button, select {
+    background: linear-gradient(180deg, #334155 0%, #1e293b 100%);
+    color: var(--text); border: 1px solid rgba(255,255,255,0.2);
+    border-radius: 8px; padding: 9px 14px; font-size: 0.95rem; font-weight: 700;
+    cursor: pointer; box-shadow: 0 4px 0 #090d16;
+  }
+  button:active { transform: translateY(3px); box-shadow: 0 1px 0 #090d16; }
+  .btn-play {
+    background: linear-gradient(180deg, #22c55e 0%, #15803d 100%);
+    border-color: #4ade80;
+  }
+  .btn-resume {
+    background: linear-gradient(180deg, #eab308 0%, #b45309 100%);
+    border-color: #fde047; color: #fff;
+  }
+  .status-bar {
+    width: 100%; max-width: 680px;
+    display: flex; justify-content: space-between; align-items: center;
+    font-size: 0.88rem; color: #cbd5e1; font-weight: 600;
+  }
+  .reader-container {
+    width: 100%; max-width: 680px;
+    padding: 22px 18px;
+    font-size: 1.28rem; line-height: 1.85;
+  }
+  .reader-container h2 {
+    color: var(--accent); font-size: 1.45rem; margin-top: 28px; margin-bottom: 12px;
+  }
+  .reader-container p {
+    margin-bottom: 22px; padding: 10px 12px; border-radius: 10px;
+    transition: background-color 0.2s ease;
+  }
+  .reader-container p.active-block {
+    background: rgba(56, 189, 248, 0.08);
+    border-left: 4px solid var(--accent);
+  }
+  .word {
+    cursor: pointer; padding: 2px 4px; border-radius: 6px;
+    transition: background-color 0.08s ease, color 0.08s ease;
+  }
+  .word:hover { background: rgba(255,255,255,0.12); }
+  .word.active-word {
+    background: var(--gold); color: #000000;
+    font-weight: 800; box-shadow: 0 3px 10px rgba(250, 204, 21, 0.5);
+  }
+  .word.bookmarked-word {
+    border-bottom: 3px solid #f472b6;
+  }
+  .visual-table-wrap {
+    margin: 24px 0; padding: 14px;
+    background: rgba(30, 41, 59, 0.85);
+    border: 2px dashed rgba(250, 204, 21, 0.45);
+    border-radius: 12px;
+  }
+  .skip-badge {
+    display: flex; justify-content: space-between; align-items: center;
+    background: rgba(250, 204, 21, 0.15); color: var(--gold);
+    padding: 8px 12px; border-radius: 8px; font-size: 0.9rem; font-weight: 800;
+    margin-bottom: 12px;
+  }
+  table {
+    width: 100%; border-collapse: collapse; font-size: 0.95rem;
+  }
+  th, td {
+    border: 1px solid #334155; padding: 10px; text-align: left;
+  }
+  th { background: #1e293b; color: var(--accent); }
+  .paste-panel {
+    display: none; width: 100%; max-width: 680px;
+    background: var(--panel); padding: 16px; border-radius: 12px;
+    margin-top: 12px; border: 1px solid rgba(255,255,255,0.2);
+  }
+  .paste-panel.open { display: block; }
+  textarea {
+    width: 100%; height: 150px; background: #0f172a; color: #fff;
+    border: 1px solid #475569; border-radius: 8px; padding: 12px;
+    font-size: 1rem; margin-bottom: 10px;
+  }
+  .bookmarks-bar {
+    width: 100%; max-width: 680px; padding: 0 18px;
+    display: flex; gap: 8px; flex-wrap: wrap; margin-top: 12px;
+  }
+  .bm-chip {
+    background: rgba(244, 114, 182, 0.16); border: 1px solid #f472b6;
+    color: #fbcfe8; padding: 6px 12px; border-radius: 20px;
+    font-size: 0.85rem; font-weight: 700; cursor: pointer;
+  }
+</style>
+</head>
+<body>
+
+<header>
+  <div class="top-bar">
+    <h1>🔊 CLEANREAD LAB</h1>
+    <div style="display:flex; gap:8px;">
+      <button onclick="togglePastePanel()">📋 Paste Text / Article</button>
+      <button onclick="dropPinBookmark()">📌 Drop Bookmark</button>
+    </div>
+  </div>
+
+  <div class="controls">
+    <button class="btn-play" id="playPauseBtn" onclick="togglePlay()">▶ Play</button>
+    <button class="btn-resume" id="resumeBtn" onclick="resumeSavedSpot()" style="display:none;">↺ Resume Saved Word</button>
+    <select id="speedSelect" onchange="changeSpeed()">
+      <option value="0.9">0.9x Speed</option>
+      <option value="1.0" selected>1.0x Normal</option>
+      <option value="1.15">1.15x Commute</option>
+      <option value="1.3">1.3x Fast</option>
+      <option value="1.5">1.5x Turbo</option>
+    </select>
+    <select id="voiceSelect" style="max-width:210px;"></select>
+  </div>
+
+  <div class="status-bar">
+    <span id="progressTxt">Tap ANY word on the page to jump the voice straight there!</span>
+    <span id="autoScrollStatus">🎯 Auto-Scroll: ON</span>
+  </div>
+
+  <div class="paste-panel" id="pastePanel">
+    <textarea id="customTextInput" placeholder="Paste any long AI reply, article, or book chapter here..."></textarea>
+    <button class="btn-play" onclick="loadCustomText()">Load Into Reader</button>
+  </div>
+</header>
+
+<div class="bookmarks-bar" id="bookmarksBar"></div>
+
+<div class="reader-container" id="readerContent">
+  <h2>Part 1: How Tap-to-Teleport Works</h2>
+  <p>Welcome to your Phase 1 Audio-First Reader prototype. Try tapping any word in this paragraph right now with your mouse or thumb. Notice how the voice immediately teleports to that exact word, lights it up in gold, and reads forward smoothly without forcing you to listen from the top of the page.</p>
+
+  <p>Because you are an auditory-first thinker, your eyes are now free to glance at the screen whenever you want, or look away while driving from Rush. Every single time a word is spoken, this app quietly saves that exact word number into your phone memory so you never lose your place.</p>
+
+  <div class="visual-table-wrap">
+    <div class="skip-badge">
+      <span>🔇 VISUAL TABLE — Automatically Skipped by Voice</span>
+    </div>
+    <table>
+      <thead>
+        <tr><th>Feature</th><th>Standard Screen Reader</th><th>Your CleanRead Engine</th></tr>
+      </thead>
+      <tbody>
+        <tr><td>Visual Tables</td><td>Reads every row &amp; border robotically</td><td>Auto-skips to the next paragraph</td></tr>
+        <tr><td>Jumping Ahead</td><td>Locked into one audio stream</td><td>Tap any word to teleport in 20ms</td></tr>
+        <tr><td>Bookmarks</td><td>None — resets when closed</td><td>Saves exact word index automatically</td></tr>
+      </tbody>
+    </table>
+  </div>
+
+  <h2>Part 2: Notice How It Just Skipped That Table!</h2>
+  <p>If you let the voice play from the end of Part 1 above, you just heard it jump clean over that entire comparison table without reading a single robotic row or column header out loud. The table stays right there on the screen for your eyes to inspect, while the voice goes straight into this paragraph.</p>
+
+  <h2>Part 3: Testing Teleprompter Auto-Scroll &amp; Bookmarks</h2>
+  <p>As the voice continues down a long multi-screen chapter or PDF, the page gently scrolls itself so the highlighted gold word stays right in the center of your vision. If you touch the screen to scroll down manually and preview what is coming up next, auto-scroll pauses politely so it never fights your thumb.</p>
+
+  <p>Whenever you hear a great idea that you want to save, just tap the Drop Bookmark button at the top of the screen. It drops a pink pin on the exact word being spoken and adds a quick-jump chip at the top of the page so you can return to that exact sentence anytime.</p>
+</div>
+
+<script>
+let wordsList = [];
+let currentWordIdx = 0;
+let isPlaying = false;
+let autoScroll = true;
+let speechRate = 1.0;
+let selectedVoice = null;
+let activeUtterance = null;
+
+const STORAGE_POS_KEY = "cleanread_saved_word_idx_v1";
+const STORAGE_BM_KEY = "cleanread_bookmarks_v1";
+const synth = window.speechSynthesis;
+
+function tokenizeDocument() {
+  wordsList = [];
+  const container = document.getElementById("readerContent");
+  const blocks = container.querySelectorAll("h2, p");
+  let globalIdx = 0;
+
+  blocks.forEach(block => {
+    if (block.closest(".visual-table-wrap")) return;
+    const rawTokens = block.innerText.trim().split(/\s+/);
+    block.innerHTML = "";
+    rawTokens.forEach((token, i) => {
+      if (!token) return;
+      const span = document.createElement("span");
+      span.className = "word";
+      span.textContent = token;
+      span.dataset.idx = globalIdx;
+      const capturedIdx = globalIdx;
+      span.onclick = () => playFromWord(capturedIdx);
+      block.appendChild(span);
+      if (i < rawTokens.length - 1) {
+        block.appendChild(document.createTextNode(" "));
+      }
+      wordsList.push({ index: globalIdx, text: token, spanEl: span, blockEl: block });
+      globalIdx++;
+    });
+  });
+
+  checkSavedResume();
+  renderBookmarks();
+}
+
+function loadVoices() {
+  const voices = synth.getVoices();
+  const sel = document.getElementById("voiceSelect");
+  if (!voices.length) return;
+  sel.innerHTML = "";
+  const sorted = [...voices].sort((a, b) => {
+    const aEn = a.lang.startsWith("en") ? 0 : 1;
+    const bEn = b.lang.startsWith("en") ? 0 : 1;
+    return aEn - bEn;
+  });
+  sorted.forEach((v) => {
+    const opt = document.createElement("option");
+    opt.value = v.name;
+    opt.textContent = `${v.name} (${v.lang})`;
+    sel.appendChild(opt);
+  });
+  selectedVoice = sorted[0];
+  sel.onchange = () => {
+    selectedVoice = voices.find(v => v.name === sel.value) || sorted[0];
+    if (isPlaying) playFromWord(currentWordIdx);
+  };
+}
+speechSynthesis.onvoiceschanged = loadVoices;
+setTimeout(loadVoices, 100);
+
+function playFromWord(startIdx) {
+  if (startIdx < 0 || startIdx >= wordsList.length) return;
+  synth.cancel();
+  currentWordIdx = startIdx;
+  isPlaying = true;
+  autoScroll = true;
+  document.getElementById("autoScrollStatus").textContent = "🎯 Auto-Scroll: ON";
+  updatePlayButton();
+  highlightWord(currentWordIdx);
+
+  const slice = wordsList.slice(startIdx);
+  let charMap = [];
+  let pos = 0;
+  const fullText = slice.map(item => {
+    charMap.push({ start: pos, end: pos + item.text.length, wordIdx: item.index });
+    pos += item.text.length + 1;
+    return item.text;
+  }).join(" ");
+
+  const utter = new SpeechSynthesisUtterance(fullText);
+  utter.rate = speechRate;
+  if (selectedVoice) utter.voice = selectedVoice;
+  activeUtterance = utter;
+
+  utter.onboundary = (event) => {
+    if (event.name === "word" || event.charIndex !== undefined) {
+      const chIdx = event.charIndex;
+      for (let i = 0; i < charMap.length; i++) {
+        if (chIdx >= charMap[i].start && chIdx <= charMap[i].end + 1) {
+          currentWordIdx = charMap[i].wordIdx;
+          highlightWord(currentWordIdx);
+          saveWordMemory(currentWordIdx);
+          break;
+        }
+      }
+    }
+  };
+
+  utter.onend = () => {
+    if (activeUtterance === utter) {
+      isPlaying = false;
+      updatePlayButton();
+    }
+  };
+
+  synth.speak(utter);
+}
+
+function highlightWord(idx) {
+  document.querySelectorAll(".word.active-word").forEach(el => el.classList.remove("active-word"));
+  document.querySelectorAll(".active-block").forEach(el => el.classList.remove("active-block"));
+
+  const item = wordsList[idx];
+  if (!item) return;
+  item.spanEl.classList.add("active-word");
+  item.blockEl.classList.add("active-block");
+
+  const pct = Math.round(((idx + 1) / wordsList.length) * 100);
+  document.getElementById("progressTxt").textContent = `Word #${idx + 1} of ${wordsList.length} (${pct}%) — "${item.text}"`;
+
+  if (autoScroll) {
+    item.spanEl.scrollIntoView({ behavior: "smooth", block: "center" });
+  }
+}
+
+function togglePlay() {
+  if (isPlaying) {
+    synth.cancel();
+    isPlaying = false;
+    updatePlayButton();
+  } else {
+    playFromWord(currentWordIdx);
+  }
+}
+
+function updatePlayButton() {
+  const btn = document.getElementById("playPauseBtn");
+  btn.textContent = isPlaying ? "⏸ Pause" : "▶ Play";
+}
+
+function changeSpeed() {
+  speechRate = parseFloat(document.getElementById("speedSelect").value);
+  if (isPlaying) playFromWord(currentWordIdx);
+}
+
+function saveWordMemory(idx) {
+  localStorage.setItem(STORAGE_POS_KEY, idx);
+  checkSavedResume();
+}
+
+function checkSavedResume() {
+  const saved = parseInt(localStorage.getItem(STORAGE_POS_KEY));
+  const btn = document.getElementById("resumeBtn");
+  if (!isNaN(saved) && saved > 0 && saved < wordsList.length) {
+    btn.style.display = "inline-block";
+    btn.textContent = `↺ Resume Word #${saved + 1}`;
+  } else {
+    btn.style.display = "none";
+  }
+}
+
+function resumeSavedSpot() {
+  const saved = parseInt(localStorage.getItem(STORAGE_POS_KEY));
+  if (!isNaN(saved)) playFromWord(saved);
+}
+
+function dropPinBookmark() {
+  const bms = JSON.parse(localStorage.getItem(STORAGE_BM_KEY) || "[]");
+  const item = wordsList[currentWordIdx];
+  if (!item) return;
+  const snippet = wordsList.slice(currentWordIdx, currentWordIdx + 4).map(w => w.text).join(" ") + "...";
+  bms.push({ idx: currentWordIdx, label: `📌 Word #${currentWordIdx + 1}: "${snippet}"` });
+  localStorage.setItem(STORAGE_BM_KEY, JSON.stringify(bms));
+  renderBookmarks();
+}
+
+function renderBookmarks() {
+  const bms = JSON.parse(localStorage.getItem(STORAGE_BM_KEY) || "[]");
+  const bar = document.getElementById("bookmarksBar");
+  bar.innerHTML = "";
+  document.querySelectorAll(".bookmarked-word").forEach(el => el.classList.remove("bookmarked-word"));
+
+  bms.forEach((bm) => {
+    if (wordsList[bm.idx]) wordsList[bm.idx].spanEl.classList.add("bookmarked-word");
+    const chip = document.createElement("div");
+    chip.className = "bm-chip";
+    chip.textContent = bm.label;
+    chip.onclick = () => playFromWord(bm.idx);
+    bar.appendChild(chip);
+  });
+}
+
+window.addEventListener("wheel", () => {
+  if (isPlaying) {
+    autoScroll = false;
+    document.getElementById("autoScrollStatus").textContent = "✋ Auto-Scroll: PAUSED (Tap word to re-center)";
+  }
+}, { passive: true });
+window.addEventListener("touchmove", () => {
+  if (isPlaying) {
+    autoScroll = false;
+    document.getElementById("autoScrollStatus").textContent = "✋ Auto-Scroll: PAUSED (Tap word to re-center)";
+  }
+}, { passive: true });
+
+function togglePastePanel() {
+  document.getElementById("pastePanel").classList.toggle("open");
+}
+
+function loadCustomText() {
+  const raw = document.getElementById("customTextInput").value.trim();
+  if (!raw) return;
+  synth.cancel();
+  isPlaying = false;
+  updatePlayButton();
+  const container = document.getElementById("readerContent");
+  const paras = raw.split(/\n\s*\n/);
+  container.innerHTML = "<h2>Custom Loaded Document</h2>" + paras.map(p => `<p>${p.replace(/\n/g, " ")}</p>`).join("");
+  localStorage.removeItem(STORAGE_POS_KEY);
+  localStorage.removeItem(STORAGE_BM_KEY);
+  document.getElementById("pastePanel").classList.remove("open");
+  tokenizeDocument();
+  playFromWord(0);
+}
+
+tokenizeDocument();
+</script>
+</body>
+</html>
 
