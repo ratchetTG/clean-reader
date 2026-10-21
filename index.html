@@ -243,7 +243,7 @@ function tokenizeDocument() {
         block.appendChild(document.createTextNode(" "));
       }
       const isLastInHeading = (block.tagName === "H2" && i === rawTokens.length - 1 && !/[.!?]$/.test(token));
-      const spokenText = isLastInHeading ? token + "." : token;
+      const spokenText = isLastInHeading ? token + "," : token;
       wordsList.push({ index: globalIdx, text: token, spoken: spokenText, spanEl: span, blockEl: block });
       globalIdx++;
     });
@@ -359,24 +359,16 @@ function stopAllAudio() {
   }
 }
 
-// Helper: slice wordsList from startIdx into clean, bite-sized sentence chunks
-function buildSentenceChunks(startIdx, maxWordsPerChunk) {
-  const chunks = [];
+// Group words into large continuous blocks (150+ words across headings & paragraphs) with ZERO sentence chopping
+function buildContinuousBlocks(startIdx, wordsPerBlock) {
+  const blocks = [];
   let idx = startIdx;
   while (idx < wordsList.length) {
-    const chunk = [];
-    const block = wordsList[idx].blockEl;
-    // First chunk is extra short (10 words max) so playback starts fast!
-    const limit = (chunks.length === 0) ? Math.min(10, maxWordsPerChunk) : maxWordsPerChunk;
-    while (idx < wordsList.length && wordsList[idx].blockEl === block && chunk.length < limit) {
-      const w = wordsList[idx];
-      chunk.push(w);
-      idx++;
-      if (/[.!?]$/.test(w.spoken || w.text)) break;
-    }
-    if (chunk.length > 0) chunks.push(chunk);
+    const chunk = wordsList.slice(idx, idx + wordsPerBlock);
+    blocks.push(chunk);
+    idx += wordsPerBlock;
   }
-  return chunks;
+  return blocks;
 }
 
 async function playFromWord(startIdx) {
@@ -394,22 +386,20 @@ async function playFromWord(startIdx) {
 
   const chosenVoiceId = document.getElementById("voiceSelect").value;
 
-  // Path A: Neural Voice Pack (with Look-Ahead Prefetch Queue)
   if (chosenVoiceId && chosenVoiceId !== "__DEFAULT__" && chosenVoiceId !== "__DOWNLOAD_PACK__") {
     if (!kokoroTTS) {
       await downloadKokoroPack();
       if (!kokoroTTS || mySession !== playSessionId) return;
     }
-    await playKokoroPrefetchStream(startIdx, chosenVoiceId, mySession);
+    await playKokoroContinuous(startIdx, chosenVoiceId, mySession);
     return;
   }
 
-  // Path B: Default Phone Voice (Sentence-by-Sentence Queue so Chrome never chokes or stalls!)
-  const chunks = buildSentenceChunks(startIdx, 22);
-  for (let c = 0; c < chunks.length; c++) {
+  // Default Voice: Continuous 180-word blocks (never stops at headings or periods!)
+  const bigBlocks = buildContinuousBlocks(startIdx, 180);
+  for (let b = 0; b < bigBlocks.length; b++) {
     if (mySession !== playSessionId) return;
-    const chunkWords = chunks[c];
-    await speakNativeChunk(chunkWords, mySession);
+    await speakNativeContinuous(bigBlocks[b], mySession);
   }
 
   if (mySession === playSessionId) {
@@ -418,7 +408,7 @@ async function playFromWord(startIdx) {
   }
 }
 
-function speakNativeChunk(chunkWords, mySession) {
+function speakNativeContinuous(chunkWords, mySession) {
   return new Promise((resolve) => {
     if (mySession !== playSessionId) { resolve(); return; }
 
@@ -443,35 +433,9 @@ function speakNativeChunk(chunkWords, mySession) {
     highlightWord(currentWordIdx);
     saveWordMemory(currentWordIdx);
 
-    // Fallback word ticker in case Android Chrome skips onboundary events
-    let boundaryFired = false;
-    const estDurationMs = Math.max(800, (chunkText.length * 62) / speechRate);
-    const totalChars = chunkWords.reduce((acc, w) => acc + w.text.length, 0) || 1;
-    const startTime = Date.now();
-
-    wordTimer = setInterval(() => {
-      if (mySession !== playSessionId) { clearInterval(wordTimer); resolve(); return; }
-      if (boundaryFired) return;
-      const ratio = Math.min(1, (Date.now() - startTime) / estDurationMs);
-      const targetChar = ratio * totalChars;
-      let run = 0;
-      for (let cw of chunkWords) {
-        run += cw.text.length;
-        if (run >= targetChar) {
-          if (currentWordIdx !== cw.index) {
-            currentWordIdx = cw.index;
-            highlightWord(currentWordIdx);
-            saveWordMemory(currentWordIdx);
-          }
-          break;
-        }
-      }
-    }, 60);
-
     utter.onboundary = (event) => {
       if (mySession !== playSessionId) return;
       if (event.name === "word" || event.charIndex !== undefined) {
-        boundaryFired = true;
         const chIdx = event.charIndex;
         for (let i = 0; i < charMap.length; i++) {
           if (chIdx >= charMap[i].start && chIdx <= charMap[i].end + 1) {
@@ -484,49 +448,27 @@ function speakNativeChunk(chunkWords, mySession) {
       }
     };
 
-    utter.onend = () => {
-      if (wordTimer) clearInterval(wordTimer);
-      resolve();
-    };
-    utter.onerror = () => {
-      if (wordTimer) clearInterval(wordTimer);
-      resolve();
-    };
+    utter.onend = () => resolve();
+    utter.onerror = () => resolve();
 
     synth.speak(utter);
   });
 }
 
-// Look-Ahead Prefetch Queue for Neural Voices: generates Chunk N+1 WHILE playing Chunk N!
-async function playKokoroPrefetchStream(startIdx, voiceId, mySession) {
-  const chunks = buildSentenceChunks(startIdx, 18);
-  if (!chunks.length) return;
-
-  async function synthesizeChunk(chunkWords) {
-    const text = chunkWords.map(w => w.spoken || w.text).join(" ");
-    // Yield 20ms to browser UI thread before synthesis so screen stays responsive
-    await new Promise(r => setTimeout(r, 20));
-    if (mySession !== playSessionId) return null;
-    const res = await kokoroTTS.generate(text, { voice: voiceId, speed: speechRate });
-    return URL.createObjectURL(res.toBlob());
-  }
-
-  document.getElementById("progressTxt").textContent = `🎙️ Buffering first sentence...`;
-  let nextAudioPromise = synthesizeChunk(chunks[0]);
-
-  for (let i = 0; i < chunks.length; i++) {
+// Neural Voice: Full paragraph flow so sentences inside a paragraph have zero artificial gaps
+async function playKokoroContinuous(startIdx, voiceId, mySession) {
+  const blocks = buildContinuousBlocks(startIdx, 55);
+  for (let i = 0; i < blocks.length; i++) {
     if (mySession !== playSessionId) return;
-    const chunkWords = chunks[i];
-    const audioUrl = await nextAudioPromise;
-    if (!audioUrl || mySession !== playSessionId) return;
+    const chunkWords = blocks[i];
+    const text = chunkWords.map(w => w.spoken || w.text).join(" ");
+    document.getElementById("progressTxt").textContent = `🎙️ Loading paragraph audio...`;
+    await new Promise(r => setTimeout(r, 15));
+    if (mySession !== playSessionId) return;
 
-    // Immediately start pre-generating the NEXT sentence in the background while this one plays!
-    if (i + 1 < chunks.length) {
-      nextAudioPromise = synthesizeChunk(chunks[i + 1]);
-    } else {
-      nextAudioPromise = Promise.resolve(null);
-    }
-
+    const res = await kokoroTTS.generate(text, { voice: voiceId, speed: speechRate });
+    if (mySession !== playSessionId) return;
+    const audioUrl = URL.createObjectURL(res.toBlob());
     await playAudioBlobWithHighlight(audioUrl, chunkWords, mySession);
   }
 
@@ -543,7 +485,7 @@ function playAudioBlobWithHighlight(url, chunkWords, mySession) {
     currentAudio = audio;
 
     audio.onloadedmetadata = () => {
-      const durationMs = (audio.duration || 1.8) * 1000;
+      const durationMs = (audio.duration || 2.0) * 1000;
       const totalChars = chunkWords.reduce((acc, w) => acc + w.text.length, 0) || 1;
 
       currentWordIdx = chunkWords[0].index;
@@ -578,7 +520,6 @@ function playAudioBlobWithHighlight(url, chunkWords, mySession) {
     };
     audio.onerror = () => {
       if (wordTimer) clearInterval(wordTimer);
-      URL.revokeObjectURL(url);
       resolve();
     };
   });
