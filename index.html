@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-<title>CleanRead v1.4</title>
+<title>CleanRead v1.5</title>
 <style>
   :root {
     --bg: #0f172a;
@@ -67,7 +67,7 @@
   }
   .progress-fill {
     width: 0%; height: 100%; background: var(--accent);
-    transition: width 0.25s ease;
+    transition: width 0.2s ease;
   }
   .reader-container {
     width: 100%; max-width: 680px;
@@ -139,7 +139,7 @@
 
 <header>
   <div class="top-bar">
-    <h1>🔊 CLEANREAD <span class="v-badge">v1.4</span></h1>
+    <h1>🔊 CLEANREAD <span class="v-badge">v1.5</span></h1>
     <div style="display:flex; gap:8px;">
       <button onclick="togglePastePanel()">📋 Paste Text</button>
       <button onclick="dropPinBookmark()">📌 Bookmark</button>
@@ -156,9 +156,14 @@
       <option value="1.3">1.3x</option>
       <option value="1.5">1.5x</option>
     </select>
-    <select id="voiceSelect" style="max-width:220px;">
-      <option value="__DEFAULT__">📱 Default Voice</option>
-    </select>
+    <select id="voiceSelect" style="max-width:230px;"></select>
+  </div>
+
+  <div id="dlBanner" style="display:none; width:100%; max-width:680px; background:#1e293b; border:1px solid #38bdf8; border-radius:8px; padding:10px 14px; font-size:0.9rem; font-weight:700; color:#f8fafc;">
+    <div id="dlStatusTxt">Downloading Voice Pack (0%)...</div>
+    <div style="width:100%; height:8px; background:#0f172a; border-radius:4px; margin-top:6px; overflow:hidden;">
+      <div id="dlBar" style="width:0%; height:100%; background:#22c55e; transition:width 0.2s;"></div>
+    </div>
   </div>
 
   <div class="progress-track">
@@ -207,16 +212,102 @@
 <script>
 let wordsList = [];
 let currentWordIdx = 0;
+let hasStartedOnce = false;
 let isPlaying = false;
 let autoScroll = true;
 let speechRate = 1.0;
 let activeUtterance = null;
 let prevWordEl = null;
 let prevBlockEl = null;
+let wordTimer = null;
+let playSessionId = 0;
+
+let kokoroTTS = null;
+let kokoroUnlocked = false;
+let currentAudio = null;
 
 const STORAGE_POS_KEY = "cleanread_saved_word_idx_v1";
 const STORAGE_BM_KEY = "cleanread_bookmarks_v1";
 const synth = window.speechSynthesis;
+
+const KOKORO_VOICES = [
+  { id: "bm_george", label: "🎙️ George (UK Male Storyteller)" },
+  { id: "bf_emma",   label: "🎙️ Emma (UK Female Narrator)" },
+  { id: "bm_lewis",  label: "🎙️ Lewis (UK Deep Male)" },
+  { id: "af_heart",  label: "🎙️ Heart (US Warm Female)" },
+  { id: "af_bella",  label: "🎙️ Bella (US Clear Female)" },
+  { id: "am_michael",label: "🎙️ Michael (US Male Narrator)" }
+];
+
+function populateVoiceMenu() {
+  const sel = document.getElementById("voiceSelect");
+  const prev = sel.value;
+  sel.innerHTML = "";
+
+  const defOpt = document.createElement("option");
+  defOpt.value = "__DEFAULT__";
+  defOpt.textContent = "📱 Default Phone Voice";
+  sel.appendChild(defOpt);
+
+  if (!kokoroUnlocked) {
+    const moreOpt = document.createElement("option");
+    moreOpt.value = "__DOWNLOAD_PACK__";
+    moreOpt.textContent = "MORE VOICE OPTIONS - Download Voice Pack";
+    sel.appendChild(moreOpt);
+  } else {
+    KOKORO_VOICES.forEach(kv => {
+      const opt = document.createElement("option");
+      opt.value = kv.id;
+      opt.textContent = kv.label;
+      sel.appendChild(opt);
+    });
+    if (prev && prev !== "__DEFAULT__" && prev !== "__DOWNLOAD_PACK__") {
+      sel.value = prev;
+    }
+  }
+
+  sel.onchange = async () => {
+    if (sel.value === "__DOWNLOAD_PACK__") {
+      sel.value = "__DEFAULT__";
+      await downloadKokoroPack();
+      return;
+    }
+    if (isPlaying) playFromWord(currentWordIdx);
+  };
+}
+
+async function downloadKokoroPack() {
+  const banner = document.getElementById("dlBanner");
+  const txt = document.getElementById("dlStatusTxt");
+  const bar = document.getElementById("dlBar");
+  banner.style.display = "block";
+  txt.textContent = "Downloading Voice Pack (~80MB)...";
+  bar.style.width = "10%";
+
+  try {
+    const module = await import("https://cdn.jsdelivr.net/npm/kokoro-js@1.1.1/+esm");
+    const KokoroTTS = module.KokoroTTS;
+    kokoroTTS = await KokoroTTS.from_pretrained("onnx-community/Kokoro-82M-v1.0-ONNX", {
+      dtype: "q8",
+      progress_callback: (p) => {
+        if (p && p.progress !== undefined) {
+          const pct = Math.round(p.progress);
+          bar.style.width = pct + "%";
+          txt.textContent = `Downloading Voice Pack: ${pct}%`;
+        }
+      }
+    });
+    kokoroUnlocked = true;
+    bar.style.width = "100%";
+    txt.textContent = "✅ Voice Pack Ready!";
+    populateVoiceMenu();
+    document.getElementById("voiceSelect").value = "bm_george";
+    setTimeout(() => { banner.style.display = "none"; }, 2000);
+    if (isPlaying) playFromWord(currentWordIdx);
+  } catch (err) {
+    txt.textContent = "⚠️ Could not load Voice Pack: " + err.message;
+  }
+}
 
 function tokenizeDocument() {
   wordsList = [];
@@ -251,30 +342,65 @@ function tokenizeDocument() {
   const saved = parseInt(localStorage.getItem(STORAGE_POS_KEY));
   if (!isNaN(saved) && saved > 0 && saved < wordsList.length) {
     currentWordIdx = saved;
+    hasStartedOnce = true;
     highlightWord(currentWordIdx);
   }
   updateTransportButtons();
   renderBookmarks();
 }
 
+function stopAllAudio() {
+  playSessionId++;
+  synth.cancel();
+  if (currentAudio) {
+    currentAudio.pause();
+    currentAudio.src = "";
+    currentAudio = null;
+  }
+  if (wordTimer) {
+    clearInterval(wordTimer);
+    wordTimer = null;
+  }
+}
+
 function playFromWord(startIdx) {
   if (startIdx < 0 || startIdx >= wordsList.length) return;
-  synth.cancel();
+  stopAllAudio();
+  const mySession = playSessionId;
 
   currentWordIdx = startIdx;
+  hasStartedOnce = true;
   isPlaying = true;
   autoScroll = true;
   highlightWord(currentWordIdx);
   localStorage.setItem(STORAGE_POS_KEY, currentWordIdx);
   updateTransportButtons();
 
+  const chosenVoiceId = document.getElementById("voiceSelect").value;
+  if (chosenVoiceId && chosenVoiceId !== "__DEFAULT__" && chosenVoiceId !== "__DOWNLOAD_PACK__" && kokoroTTS) {
+    playKokoroStream(startIdx, chosenVoiceId, mySession);
+    return;
+  }
+
   const slice = wordsList.slice(startIdx);
   let charMap = [];
   let pos = 0;
+  // Build cumulative character weights for the fallback Android word tracker
+  let weightedTimings = [];
+  let totalWeight = 0;
+
   const fullText = slice.map(item => {
     const spk = item.spoken || item.text;
     charMap.push({ start: pos, end: pos + spk.length, wordIdx: item.index });
     pos += spk.length + 1;
+
+    // Weight per word: base letters + extra pause weight for commas/periods
+    let weight = Math.max(3, spk.length);
+    if (/[.!?]$/.test(spk)) weight += 7;
+    else if (/[,;:]$/.test(spk)) weight += 4;
+    totalWeight += weight;
+    weightedTimings.push({ cumWeight: totalWeight, wordIdx: item.index });
+
     return spk;
   }).join(" ");
 
@@ -282,20 +408,48 @@ function playFromWord(startIdx) {
   utter.rate = speechRate;
   activeUtterance = utter;
 
-  let lastWIdx = -1;
+  let boundaryWorking = false;
+  let speechStartTime = Date.now();
+  // Average speaking cadence: ~58ms per weight unit at 1.0x speed
+  const estTotalMs = (totalWeight * 58) / speechRate;
+
+  // Hybrid Android + Desktop Tracker: moves gold word smoothly even when Android Chrome suppresses onboundary!
+  wordTimer = setInterval(() => {
+    if (mySession !== playSessionId || !isPlaying) {
+      clearInterval(wordTimer);
+      return;
+    }
+    if (boundaryWorking) return; // Desktop/native boundary is active, let it drive
+
+    const elapsed = Date.now() - speechStartTime;
+    const ratio = Math.min(0.995, elapsed / estTotalMs);
+    const targetWeight = ratio * totalWeight;
+
+    for (let i = 0; i < weightedTimings.length; i++) {
+      if (weightedTimings[i].cumWeight >= targetWeight) {
+        const wIdx = weightedTimings[i].wordIdx;
+        if (wIdx !== currentWordIdx) {
+          currentWordIdx = wIdx;
+          highlightWord(currentWordIdx);
+          localStorage.setItem(STORAGE_POS_KEY, currentWordIdx);
+        }
+        break;
+      }
+    }
+  }, 60);
+
   utter.onboundary = (event) => {
-    if (activeUtterance !== utter) return;
+    if (mySession !== playSessionId) return;
     if (event.charIndex !== undefined) {
+      boundaryWorking = true; // Native word boundary confirmed working!
       const chIdx = event.charIndex;
       for (let i = 0; i < charMap.length; i++) {
         if (chIdx >= charMap[i].start && chIdx <= charMap[i].end + 1) {
           const wIdx = charMap[i].wordIdx;
-          if (wIdx !== lastWIdx) {
-            lastWIdx = wIdx;
+          if (wIdx !== currentWordIdx) {
             currentWordIdx = wIdx;
             highlightWord(currentWordIdx);
             localStorage.setItem(STORAGE_POS_KEY, currentWordIdx);
-            updateTransportButtons();
           }
           break;
         }
@@ -304,13 +458,66 @@ function playFromWord(startIdx) {
   };
 
   utter.onend = () => {
-    if (activeUtterance === utter) {
+    if (mySession === playSessionId) {
+      if (wordTimer) clearInterval(wordTimer);
       isPlaying = false;
       updateTransportButtons();
     }
   };
 
   synth.speak(utter);
+}
+
+async function playKokoroStream(startIdx, voiceId, mySession) {
+  let idx = startIdx;
+  while (idx < wordsList.length && mySession === playSessionId) {
+    const startBlock = wordsList[idx].blockEl;
+    const chunkWords = [];
+    while (idx < wordsList.length && wordsList[idx].blockEl === startBlock) {
+      chunkWords.push(wordsList[idx]);
+      idx++;
+    }
+    const text = chunkWords.map(w => w.spoken || w.text).join(" ");
+    await new Promise(r => setTimeout(r, 20));
+    if (mySession !== playSessionId) return;
+
+    const res = await kokoroTTS.generate(text, { voice: voiceId, speed: speechRate });
+    if (mySession !== playSessionId) return;
+    const url = URL.createObjectURL(res.toBlob());
+
+    await new Promise((resolve) => {
+      const audio = new Audio(url);
+      currentAudio = audio;
+      audio.onloadedmetadata = () => {
+        const durationMs = (audio.duration || 2.0) * 1000;
+        const totalChars = chunkWords.reduce((acc, w) => acc + w.text.length, 0) || 1;
+        wordTimer = setInterval(() => {
+          if (mySession !== playSessionId) { clearInterval(wordTimer); resolve(); return; }
+          const ratio = Math.min(1, (audio.currentTime * 1000) / durationMs);
+          const targetChar = ratio * totalChars;
+          let run = 0;
+          for (let cw of chunkWords) {
+            run += cw.text.length;
+            if (run >= targetChar) {
+              if (currentWordIdx !== cw.index) {
+                currentWordIdx = cw.index;
+                highlightWord(currentWordIdx);
+                localStorage.setItem(STORAGE_POS_KEY, currentWordIdx);
+              }
+              break;
+            }
+          }
+        }, 50);
+        audio.play();
+      };
+      audio.onended = () => { clearInterval(wordTimer); URL.revokeObjectURL(url); resolve(); };
+      audio.onerror = () => { clearInterval(wordTimer); resolve(); };
+    });
+  }
+  if (mySession === playSessionId) {
+    isPlaying = false;
+    updateTransportButtons();
+  }
 }
 
 function highlightWord(idx) {
@@ -338,7 +545,7 @@ function highlightWord(idx) {
 
 function togglePlay() {
   if (isPlaying) {
-    synth.cancel();
+    stopAllAudio();
     isPlaying = false;
     localStorage.setItem(STORAGE_POS_KEY, currentWordIdx);
     updateTransportButtons();
@@ -358,13 +565,13 @@ function updateTransportButtons() {
 
   if (isPlaying) {
     playBtn.textContent = "⏸ Pause";
-  } else if (currentWordIdx > 0) {
+  } else if (hasStartedOnce || currentWordIdx > 0) {
     playBtn.textContent = "▶ Resume";
   } else {
     playBtn.textContent = "▶ Play";
   }
 
-  restartBtn.style.display = (currentWordIdx > 0) ? "inline-block" : "none";
+  restartBtn.style.display = (hasStartedOnce || currentWordIdx > 0) ? "inline-block" : "none";
 }
 
 function changeSpeed() {
@@ -408,9 +615,10 @@ function togglePastePanel() {
 function loadCustomText() {
   const raw = document.getElementById("customTextInput").value.trim();
   if (!raw) return;
-  synth.cancel();
+  stopAllAudio();
   isPlaying = false;
   currentWordIdx = 0;
+  hasStartedOnce = false;
   const container = document.getElementById("readerContent");
   const paras = raw.split(/\n\s*\n/);
   container.innerHTML = "<h2>Custom Loaded Document</h2>" + paras.map(p => `<p>${p.replace(/\n/g, " ")}</p>`).join("");
@@ -421,6 +629,7 @@ function loadCustomText() {
   playFromWord(0);
 }
 
+populateVoiceMenu();
 tokenizeDocument();
 </script>
 </body>
